@@ -7,23 +7,23 @@ Watch your memory and find leaks
 
 ## Why
 
-Other tools are commercial and pricy and you don´t need them often.
-Mem leaks can be tricky to find (very rare in the night, high mem spikes,..)  and then you are not able attach a professional mem debugger.
-Most memory debuggers suspend the target process to get consistent snapshots (this ist not what you want in a production environment, the process needs to run).
-They also take complete snapshots of the memory with hundrets og MB  (which can increase your memory pressure even more)
+Other tools are commercial and expensive, and you don’t need them very often.
+Memory leaks can be tricky to find (very rare occurrences during the night, high memory spikes, etc.), and in such cases, you may not be able to attach a professional memory debugger.
+Most memory debuggers suspend the target process to get consistent snapshots (which is not what you want in a production environment — the process needs to keep running).
+They also take complete memory snapshots with hundreds of MB, which can increase memory pressure even more.
 
-## Pro
-Can be integrated direct (include the MemoryWatchDog.dll)
-Does not suspend the target process, can easyly used in live production environments
-Can make only small aggreagted snapshots (for a first glimpse)
-Can clean/defrag (periodical) the large object heap LOH and probaly solve some memory issues
-Can make auto snapshots by a filter (when memory gets over a special limit)
+## Pros
+Can be integrated directly (just include the MemoryWatchDog.dll)
+Does not suspend the target process and can easily be used in live production environments
+Can create small aggregated snapshots (for an initial overview)
+Can periodically clean/defragment the Large Object Heap (LOH) and potentially solve some memory issues
+Can create automatic snapshots based on a filter (e.g., when memory exceeds a specific limit)
 
 ## Cons
-Not so powerfull and comparable to commerial memory debuggers like (JustTrace, dotMemory, ANTS memory profiler,...)
+Not as powerful or comprehensive as commercial memory debuggers like (JustTrace, dotMemory, ANTS memory profiler,...)
 
 ## Usage
-integrate the MemoryWatchDog.dll into you app
+Integrate the MemoryWatchDog.dll into your application.
 
   
 ## License
