@@ -83,7 +83,7 @@ namespace MemoryWatchDogApp
 
             var rootNode = CreateNodeVisual(
                 obj.TypeName,
-                $"0x{obj.Reference.Address:X} | {obj.Size} bytes",
+                $"0x{obj.Reference?.Address:X} | {obj.Size} bytes",
                 "#1565C0", "#E3F2FD", nodeWidth);
             Canvas.SetLeft(rootNode, rootX);
             Canvas.SetTop(rootNode, rootY);
@@ -177,12 +177,14 @@ namespace MemoryWatchDogApp
             public ObjectInfo ObjectInfo { get; }
             public string AddressText { get; }
             public string SizeText { get; }
+            public string DisplayValueText { get; }
 
             public ObjectDisplayItem(ObjectInfo obj)
             {
                 this.ObjectInfo = obj;
-                this.AddressText = $"0x{obj.Reference.Address:X}";
+                this.AddressText = $"0x{obj.Reference?.Address:X}";
                 this.SizeText = $"{obj.Size} bytes";
+                this.DisplayValueText = obj.DisplayValue;
             }
         }
     }

@@ -6,6 +6,20 @@ namespace MemoryWatchDog.Test
 
     public class MemoryWatchDogTests
     {
+        private void WaitForWatching(MemoryWatchDog memWatchDog, int seconds)
+        {
+            var startDate = DateTime.Now;
+            while (memWatchDog.IsWatching)
+            {
+                Thread.Sleep(100);
+                if ((DateTime.Now - startDate).TotalSeconds > seconds)
+                {
+                    memWatchDog.StopWatching();
+                    return;
+                }
+            }
+        }
+
         [Fact]
         public void Test_GrabOnce_SaveToFile()
         {
@@ -20,7 +34,7 @@ namespace MemoryWatchDog.Test
         [Fact]
         public void Test_GrabPeriodically_SaveToFile()
         {
-            var startDate = DateTime.Now;
+
 
             var memWatchDog = new MemoryWatchDog
             {
@@ -35,17 +49,21 @@ namespace MemoryWatchDog.Test
             };
 
             memWatchDog.StartWatching(new TimeSpan(0, 0, 1));
-
-            while (memWatchDog.IsWatching)
-            {
-                Thread.Sleep(100);
-                if ((DateTime.Now - startDate).TotalSeconds > 15)
-                {
-                    memWatchDog.StopWatching();
-                }
-            }
+            WaitForWatching(memWatchDog, seconds: 10);
 
             Assert.True(File.Exists(MemoryStats.GetDefaultFilePath()));
+        }
+
+
+
+        [Fact]
+        public void Test_GrabOnce_CancellationToken()
+        {
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromSeconds(1));
+
+            var memWatchDog = new MemoryWatchDog();
+            var stats = memWatchDog.GetMemoryStats(cancellationToken: cts.Token);
         }
     }
 }

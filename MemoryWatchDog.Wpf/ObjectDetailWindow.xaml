@@ -1,8 +1,12 @@
 <Window x:Class="MemoryWatchDogApp.ObjectDetailWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:MemoryWatchDogApp.Converters"
         Title="Object Details" Height="600" Width="1000"
         WindowStartupLocation="CenterOwner">
+  <Window.Resources>
+    <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+  </Window.Resources>
   <Grid Margin="10">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="380"/>
@@ -19,16 +23,21 @@
                HorizontalContentAlignment="Stretch">
         <ListBox.ItemTemplate>
           <DataTemplate>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" Text="{Binding ObjectInfo.TypeName}" FontSize="12"/>
-              <TextBlock Grid.Column="1" Text="{Binding AddressText}" FontFamily="Consolas" FontSize="12" Margin="8,0,0,0"/>
-              <TextBlock Grid.Column="2" Text="{Binding SizeText}" Foreground="Gray" FontSize="11" Margin="8,0,0,0"/>
-            </Grid>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding ObjectInfo.TypeName}" FontSize="12"/>
+                <TextBlock Grid.Column="1" Text="{Binding AddressText}" FontFamily="Consolas" FontSize="12" Margin="8,0,0,0"/>
+                <TextBlock Grid.Column="2" Text="{Binding SizeText}" Foreground="Gray" FontSize="11" Margin="8,0,0,0"/>
+              </Grid>
+              <TextBlock Text="{Binding DisplayValueText}" Foreground="#1565C0" FontSize="11"
+                         TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                         Visibility="{Binding DisplayValueText, Converter={StaticResource StringToVisibilityConverter}}"/>
+            </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>
       </ListBox>

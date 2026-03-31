@@ -13,6 +13,7 @@
             <RowDefinition Height="200"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -62,6 +63,7 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <CheckBox x:Name="ExcludeSystemNamespacesCheckBox" Grid.Column="0" Margin="0,0,10,0"
                       Content="Exclude System Namespaces" VerticalAlignment="Center"
@@ -75,8 +77,18 @@
                     Click="AttachButton_Click" IsEnabled="False"/>
         </Grid>
 
+        <!-- Capture Progress -->
+        <StackPanel Grid.Row="4" x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
+            <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
+                       Text="Objects: 0 | Types: 0" Foreground="DarkBlue"/>
+            <ProgressBar x:Name="CaptureProgressBar" Width="200" Height="16" IsIndeterminate="True"/>
+            <Button x:Name="CancelButton" Grid.Column="4" Content="Cancel" Width="60" 
+                Margin="5,0,0,0" Click="CancelButton_Click" IsEnabled="False"
+                ToolTip="Cancel the running capture"/>
+        </StackPanel>
+
         <!-- Stats Header -->
-        <Grid Grid.Row="4" Margin="0,10,0,5">
+        <Grid Grid.Row="5" Margin="0,10,0,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -91,7 +103,7 @@
         </Grid>
 
         <!-- Memory Stats Display -->
-        <TabControl Grid.Row="5">
+        <TabControl Grid.Row="6">
             <TabItem Header="Overview">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10">
@@ -144,17 +156,19 @@
                           IsReadOnly="True" CanUserSortColumns="True" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray"
                           >
                     <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="120"/>
                         <DataGridTextColumn Header="Managed Thread ID" Binding="{Binding ManagedThreadId}" Width="140"/>
                         <DataGridTextColumn Header="OS Thread ID" Binding="{Binding OSThreadId}" Width="120"/>
-                        <DataGridTextColumn Header="State" Binding="{Binding State}" Width="*"/>
                         <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="180"/>
+                        <DataGridTextColumn Header="CurrentException" Binding="{Binding CurrentExceptionType}" Width="180"/>
+                        <DataGridTextColumn Header="StackFrames" Binding="{Binding StackFramesAll}" Width="180"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </TabItem>
         </TabControl>
 
         <!-- Status bar -->
-        <Grid Grid.Row="6">
+        <Grid Grid.Row="7">
             <StackPanel Orientation="Horizontal">
                 <Button x:Name="ExportTxtButton" Grid.Column="1" Content="Export TXT" Width="90"
                  Margin="0,0,5,0" Click="ExportTxtButton_Click" IsEnabled="False"

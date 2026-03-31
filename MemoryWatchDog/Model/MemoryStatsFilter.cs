@@ -17,7 +17,7 @@
 
         public static List<string> GetSystemNamespaces()
         {
-            return new List<string>() { "<>", "System", "Microsoft", "Windows", "mscorlib", "MS.", "Global", "Global Namespace", "<CppImplementionDetails>" };
+            return new List<string>() { "<>", "System", "Microsoft", "Windows", "mscorlib", "MS.", "Global", "Global Namespace", "<CppImplementationDetails>", "<CrtImplementationDetails>", "Internal." };
         }
 
         public List<string> ExcludeNameSpaces

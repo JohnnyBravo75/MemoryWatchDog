@@ -81,13 +81,27 @@
         [JsonIgnore]
         public string AssemblyName { get; set; } = "";
 
-        public ClrObject Reference { get; set; }
+        public ClrObject? Reference { get; set; }
+
+        public string DisplayValue { get; set; } = "";
 
         public List<ReferenceInfo> References { get; set; } = new List<ReferenceInfo>();
 
         public override string ToString()
         {
             return $"Type: {TypeName}, Size: {Size}, ElementType: {ElementType}, Assembly: {AssemblyName}";
+        }
+
+        public TypeInfo GetTypeInfo()
+        {
+            return new TypeInfo
+            {
+                TypeName = this.TypeName,
+                Count = this.Count,
+                Size = this.Size,
+                ElementType = this.ElementType,
+                AssemblyName = this.AssemblyName
+            };
         }
     }
 

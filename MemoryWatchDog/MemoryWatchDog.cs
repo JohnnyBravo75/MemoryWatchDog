@@ -5,12 +5,13 @@
     using System.Diagnostics;
     using System.Linq;
     using System.Runtime;
+    using System.Threading;
     using System.Timers;
     using Microsoft.Diagnostics.Runtime;
 
     public partial class MemoryWatchDog : IDisposable
     {
-        Timer checkTimer = new Timer();
+        System.Timers.Timer checkTimer = new System.Timers.Timer();
 
         private bool isWatching = false;
 
@@ -27,6 +28,8 @@
         public MemoryStatsFilter MemStatsFilter { get; set; } = new MemoryStatsFilter();
 
         public event EventHandler<MemoryStatsTakenEventArgs> SnapshotTaken;
+
+        public event EventHandler<CaptureProgressEventArgs> CaptureProgress;
 
         public MemoryWatchDog()
         {
@@ -136,7 +139,7 @@
             }
         }
 
-        public MemoryStats GetMemoryStats(MemoryStatsFilter memoryStatsFilter = null, int? processId = null)
+        public MemoryStats GetMemoryStats(MemoryStatsFilter memoryStatsFilter = null, int? processId = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (memoryStatsFilter == null)
             {
@@ -147,6 +150,8 @@
             {
                 processId = Process.GetCurrentProcess().Id;
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             var memoryStats = new MemoryStats
             {
@@ -174,6 +179,8 @@
                 var clrInfo = dataTarget.ClrVersions[0];
                 memoryStats.NETVersion = clrInfo.Version?.ToString();
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 using (var runtime = clrInfo.CreateRuntime())
                 {
                     memoryStats.CpuUtilizationPercent = runtime.ThreadPool.CpuUtilization;
@@ -184,13 +191,15 @@
                     memoryStats.WindowsThreadPoolThreadCount = runtime.ThreadPool.WindowsThreadPoolThreadCount;
                     memoryStats.MaxThreads = runtime.ThreadPool.MaxThreads;
 
-                    this.ReadThreads(runtime, memoryStats);
+                    this.ReadThreads(runtime, memoryStats, cancellationToken);
 
                     // Heap (Objects in Memory)
-                    this.ReadHeap(runtime, memoryStats, memoryStatsFilter);
+                    this.ReadHeap(runtime, memoryStats, memoryStatsFilter, cancellationToken);
                 }
 
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Filter by max objects count
             foreach (var objKey in memoryStats.Types.Keys.ToList())
@@ -206,27 +215,119 @@
             return memoryStats;
         }
 
-        private void ReadThreads(ClrRuntime runtime, MemoryStats memoryStats)
+        private void ReadThreads(ClrRuntime runtime, MemoryStats memoryStats, CancellationToken cancellationToken)
         {
+            // Resolve thread names from the heap by finding System.Threading.Thread objects
+            var threadNames = this.ResolveThreadNames(runtime);
+
             foreach (var thread in runtime.Threads.Where(x => x.IsAlive))
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                threadNames.TryGetValue(thread.ManagedThreadId, out string threadName);
+
                 var threadInfo = new ThreadInfo()
                 {
+                    Name = threadName,
                     State = thread.State.ToString(),
                     Address = thread.Address,
                     OSThreadId = thread.OSThreadId,
-                    ManagedThreadId = thread.ManagedThreadId
+                    ManagedThreadId = thread.ManagedThreadId,
+                    IsBackground = thread.State.HasFlag(ClrThreadState.TS_Background),
+                    IsThreadPoolThread = thread.State.HasFlag(ClrThreadState.TS_TPWorkerThread)
+                                      || thread.State.HasFlag(ClrThreadState.TS_CompletionPortThread),
+                    CurrentExceptionType = thread.CurrentException?.Type?.Name
                 };
+
+                int idx = 0;
+                // Capture managed stack frames
+                foreach (var frame in thread.EnumerateStackTrace())
+                {
+                    string frameName = frame.Method?.Signature ?? frame.FrameName;
+                    if (!string.IsNullOrEmpty(frameName))
+                    {
+                        threadInfo.StackFrames.Add(frameName);
+                        idx++;
+                    }
+
+                    if (idx > 10)
+                    {
+                        break;
+                    }
+                }
+
                 memoryStats.Threads.Add(threadInfo);
             }
         }
 
-        private void ReadHeap(ClrRuntime runtime, MemoryStats memoryStats, MemoryStatsFilter memoryStatsFilter)
+        private Dictionary<int, string> ResolveThreadNames(ClrRuntime runtime)
+        {
+            var names = new Dictionary<int, string>();
+
+            try
+            {
+                if (!runtime.Heap.CanWalkHeap)
+                {
+                    return names;
+                }
+
+                foreach (var obj in runtime.Heap.EnumerateObjects())
+                {
+                    if (obj.Type?.Name != "System.Threading.Thread")
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var idField = obj.Type.GetFieldByName("_managedThreadId")
+                                   ?? obj.Type.GetFieldByName("m_ManagedThreadId");
+                        var nameField = obj.Type.GetFieldByName("_name")
+                                     ?? obj.Type.GetFieldByName("m_Name");
+
+                        if (idField == null || nameField == null)
+                        {
+                            continue;
+                        }
+
+                        int managedId = idField.Read<int>(obj.Address, interior: false);
+                        string name = nameField.ReadString(obj.Address, interior: false);
+
+                        if (!string.IsNullOrEmpty(name) && !names.ContainsKey(managedId))
+                        {
+                            names[managedId] = name;
+                        }
+                    }
+                    catch
+                    {
+                        // Skip objects that can't be read
+                    }
+                }
+            }
+            catch
+            {
+                // If heap walk fails, return what we have
+            }
+
+            return names;
+        }
+
+        private void ReadHeap(ClrRuntime runtime, MemoryStats memoryStats, MemoryStatsFilter memoryStatsFilter, CancellationToken cancellationToken)
         {
             if (runtime.Heap.CanWalkHeap)
             {
+                int objectsProcessed = 0;
+
                 foreach (var obj in runtime.Heap.EnumerateObjects())
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    objectsProcessed++;
+                    if (objectsProcessed % 1000 == 0)
+                    {
+                        this.CaptureProgress?.Invoke(this, new CaptureProgressEventArgs(objectsProcessed, memoryStats.Types.Count));
+                    }
+
                     try
                     {
                         var type = obj.Type;
@@ -258,7 +359,8 @@
                                 TypeName = typeName,
                                 Size = obj.Size,
                                 ElementType = type.ElementType.ToString(),
-                                AssemblyName = assemblyName
+                                AssemblyName = assemblyName,
+                                DisplayValue = this.GetDisplayValue(obj, type)
                             };
 
                             if (!memoryStatsFilter.AggregateObjects)
@@ -284,7 +386,142 @@
                     }
                 }
 
+                this.CaptureProgress?.Invoke(this, new CaptureProgressEventArgs(objectsProcessed, memoryStats.Types.Count));
             }
+        }
+
+        private static readonly HashSet<string> IdentityFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Name", "_name", "Id", "_id", "Key", "_key", "Text", "_text", "Title", "_title",
+            "DisplayName", "_displayName", "Label", "_label", "Description", "_description"
+        };
+
+        private static readonly HashSet<ClrElementType> ReadableValueTypes = new HashSet<ClrElementType>
+        {
+            ClrElementType.Boolean,
+            ClrElementType.Int8, ClrElementType.UInt8,
+            ClrElementType.Int16, ClrElementType.UInt16,
+            ClrElementType.Int32, ClrElementType.UInt32,
+            ClrElementType.Int64, ClrElementType.UInt64,
+            ClrElementType.Float, ClrElementType.Double
+        };
+
+        private string GetDisplayValue(ClrObject obj, ClrType type)
+        {
+            try
+            {
+                if (type.IsString)
+                {
+                    string value = obj.AsString(maxLength: 120);
+                    if (value != null)
+                    {
+                        return $"\"{value}\"";
+                    }
+                    return "";
+                }
+
+                // Skip types where identity fields are meaningless or GetFieldByName may hang
+                string typeName = type.Name;
+                if (typeName != null && this.IsCollectionType(typeName))
+                {
+                    return "";
+                }
+
+                // Iterate fields once instead of calling GetFieldByName per name (avoids hangs on complex generic types)
+                var fields = type.Fields;
+                if (fields == null)
+                {
+                    return "";
+                }
+
+                foreach (var field in fields)
+                {
+                    if (field?.Name == null || !IdentityFieldNames.Contains(field.Name))
+                    {
+                        continue;
+                    }
+
+                    string displayValue = this.TryReadFieldValue(obj, field);
+                    if (!string.IsNullOrEmpty(displayValue))
+                    {
+                        return $"{field.Name} = {displayValue}";
+                    }
+                }
+            }
+            catch
+            {
+                // Reading fields can fail for corrupted or partially collected objects
+            }
+
+            return "";
+        }
+
+        private string TryReadFieldValue(ClrObject obj, ClrInstanceField field)
+        {
+            try
+            {
+                if (field.ElementType == ClrElementType.String)
+                {
+                    string value = obj.ReadStringField(field.Name);
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        if (value.Length > 80)
+                        {
+                            value = value.Substring(0, 80) + "...";
+                        }
+                        return $"\"{value}\"";
+                    }
+                }
+                else if (ReadableValueTypes.Contains(field.ElementType))
+                {
+                    switch (field.ElementType)
+                    {
+                        case ClrElementType.Boolean:
+                            return obj.ReadField<bool>(field.Name).ToString();
+                        case ClrElementType.Int32:
+                            return obj.ReadField<int>(field.Name).ToString();
+                        case ClrElementType.Int64:
+                            return obj.ReadField<long>(field.Name).ToString();
+                        case ClrElementType.UInt32:
+                            return obj.ReadField<uint>(field.Name).ToString();
+                        case ClrElementType.UInt64:
+                            return obj.ReadField<ulong>(field.Name).ToString();
+                        case ClrElementType.Float:
+                            return obj.ReadField<float>(field.Name).ToString();
+                        case ClrElementType.Double:
+                            return obj.ReadField<double>(field.Name).ToString();
+                        case ClrElementType.Int16:
+                            return obj.ReadField<short>(field.Name).ToString();
+                        case ClrElementType.UInt16:
+                            return obj.ReadField<ushort>(field.Name).ToString();
+                        case ClrElementType.Int8:
+                            return obj.ReadField<sbyte>(field.Name).ToString();
+                        case ClrElementType.UInt8:
+                            return obj.ReadField<byte>(field.Name).ToString();
+                    }
+                }
+            }
+            catch
+            {
+                // Field read failed
+            }
+
+            return null;
+        }
+
+        private bool IsCollectionType(string typeName)
+        {
+            return typeName.StartsWith("System.Collections.", StringComparison.Ordinal)
+                || typeName.StartsWith("System.Dictionary", StringComparison.Ordinal)
+                || typeName.Contains("Dictionary<")
+                || typeName.Contains("List<")
+                || typeName.Contains("HashSet<")
+                || typeName.Contains("Queue<")
+                || typeName.Contains("Stack<")
+                || typeName.Contains("ConcurrentDictionary<")
+                || typeName.Contains("ConcurrentQueue<")
+                || typeName.Contains("ConcurrentBag<")
+                || typeName.StartsWith("System.Linq.", StringComparison.Ordinal);
         }
 
         private string GetNamespaceFromTypeName(string typeName)

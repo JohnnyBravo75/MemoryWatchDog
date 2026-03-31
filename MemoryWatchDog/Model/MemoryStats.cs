@@ -6,6 +6,7 @@
     using System.IO;
     using System.Linq;
     using System.Reflection;
+    using Microsoft.Diagnostics.Runtime;
     using Newtonsoft.Json;
 
 
@@ -47,6 +48,29 @@
         public string NETVersion { get; internal set; }
 
 
+        public void Clear()
+        {
+            this.Threads?.Clear();
+
+            if (this.Types != null)
+            {
+                foreach (var type in this.Types)
+                {
+                    if (type.Value.Objects != null)
+                    {
+                        foreach (var obj in type.Value.Objects)
+                        {
+                            obj.Reference = null;
+                            obj.References?.Clear();
+                        }
+
+                        type.Value.Objects.Clear();
+                    }
+                }
+                this.Types.Clear();
+            }
+        }
+
         public void AddObject(ObjectInfo objectInfo, bool aggregate = true)
         {
             if (objectInfo == null || string.IsNullOrEmpty(objectInfo.TypeName))
@@ -58,7 +82,7 @@
             this.Types.TryGetValue(objectInfo.TypeName, out var currentTypeInfo);
             if (currentTypeInfo == null)
             {
-                currentTypeInfo = GetTypeInfo(objectInfo);
+                currentTypeInfo = objectInfo.GetTypeInfo();
                 this.Types.Add(objectInfo.TypeName, currentTypeInfo);
             }
 
@@ -74,17 +98,7 @@
             }
         }
 
-        private static TypeInfo GetTypeInfo(ObjectInfo objectInfo)
-        {
-            return new TypeInfo
-            {
-                TypeName = objectInfo.TypeName,
-                Count = objectInfo.Count,
-                Size = objectInfo.Size,
-                ElementType = objectInfo.ElementType,
-                AssemblyName = objectInfo.AssemblyName
-            };
-        }
+
 
         public void AddThread(ThreadInfo threadInfo)
         {

@@ -3,6 +3,7 @@
     using System.Collections.ObjectModel;
     using System.ComponentModel;
     using System.Diagnostics;
+    using System.Threading;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Data;
@@ -22,6 +23,7 @@
         private ICollectionView? objectsView;
         private string objectsFilterText = string.Empty;
         private MemoryStats? currentStats;
+        private CancellationTokenSource? captureCts;
 
         public MainWindow()
         {
@@ -191,13 +193,29 @@
             this.RefreshButton.IsEnabled = false;
             this.ExportTxtButton.IsEnabled = false;
             this.ExportJsonButton.IsEnabled = false;
+            this.CancelButton.IsEnabled = true;
+            this.currentStats?.Clear();
             this.currentStats = null;
             this.StatusText.Text = $"Analyzing process {selectedProcess.ProcessName} (PID {selectedProcess.Id})...";
             this.OverviewText.Text = "Loading memory statistics, please wait...";
             this.ObjectsGrid.ItemsSource = null;
             this.ThreadsGrid.ItemsSource = null;
 
+            this.CaptureProgressText.Text = "Objects: 0 | Types: 0";
+            this.CaptureProgressPanel.Visibility = Visibility.Visible;
+
+            this.captureCts = new CancellationTokenSource();
+            var cancellationToken = this.captureCts.Token;
+
             var watchDog = new MemoryWatchDog();
+
+            watchDog.CaptureProgress += (s, args) =>
+            {
+                this.Dispatcher.BeginInvoke(() =>
+                {
+                    this.CaptureProgressText.Text = $"Objects: {args.ObjectsProcessed} | Types: {args.TypesFound}";
+                });
+            };
 
             try
             {
@@ -216,7 +234,7 @@
 
                 // Capture the stats
                 var stats = await Task.Run(() =>
-                    watchDog.GetMemoryStats(filter, selectedProcess.Id));
+                    watchDog.GetMemoryStats(filter, selectedProcess.Id, cancellationToken));
 
                 if (stats == null)
                 {
@@ -226,6 +244,11 @@
                 }
 
                 this.DisplayMemoryStats(stats);
+            }
+            catch (OperationCanceledException)
+            {
+                this.OverviewText.Text = "Capture was cancelled.";
+                this.StatusText.Text = "Cancelled";
             }
             catch (Exception ex)
             {
@@ -238,9 +261,18 @@
             {
                 this.AttachButton.IsEnabled = this.ProcessGrid.SelectedItem is ProcessInfo;
                 this.RefreshButton.IsEnabled = true;
+                this.CancelButton.IsEnabled = false;
+                this.CaptureProgressPanel.Visibility = Visibility.Collapsed;
 
+                this.captureCts?.Dispose();
+                this.captureCts = null;
                 watchDog?.Dispose();
             }
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.captureCts?.Cancel();
         }
 
         private void DisplayMemoryStats(MemoryStats stats)
