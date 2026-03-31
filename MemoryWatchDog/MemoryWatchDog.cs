@@ -12,6 +12,8 @@
     {
         Timer checkTimer = new Timer();
 
+        private bool isWatching = false;
+
         public long MinMemoryCleanupLimitBytes { get; set; } = 0;
 
         public bool WriteMemStatsFile { get; set; } = false;
@@ -24,6 +26,8 @@
 
         public MemoryStatsFilter MemStatsFilter { get; set; } = new MemoryStatsFilter();
 
+        public event EventHandler<MemoryStatsTakenEventArgs> SnapshotTaken;
+
         public MemoryWatchDog()
         {
             this.checkTimer.Elapsed += this.CheckTimer_Tick;
@@ -31,14 +35,7 @@
 
         public bool IsWatching
         {
-            get { return this.checkTimer != null && this.checkTimer.Enabled; }
-        }
-
-        public void SetWatchOptions(long minMemoryCleanupLimitBytes = 0, bool writeMemStatsFile = false, MemoryStatsFilter memStatsFilter = null)
-        {
-            this.MinMemoryCleanupLimitBytes = minMemoryCleanupLimitBytes;
-            this.WriteMemStatsFile = writeMemStatsFile;
-            this.MemStatsFilter = memStatsFilter ?? new MemoryStatsFilter();
+            get { return this.checkTimer != null && this.isWatching; }
         }
 
         public void StartWatching(TimeSpan checkInterval)
@@ -49,6 +46,7 @@
             {
                 this.checkTimer.Interval = checkInterval.TotalMilliseconds;
                 this.checkTimer.Start();
+                this.isWatching = true;
             }
         }
 
@@ -57,6 +55,7 @@
             if (this.checkTimer != null && this.checkTimer.Enabled)
             {
                 this.checkTimer.Stop();
+                this.isWatching = false;
             }
         }
 
@@ -66,6 +65,7 @@
             {
                 this.StopWatching();
 
+                this.isWatching = false;
                 this.checkTimer.Elapsed -= this.CheckTimer_Tick;
                 this.checkTimer.Dispose();
                 this.checkTimer = null;
@@ -104,7 +104,7 @@
             {
                 GC.Collect();
 
-                // Damit der LOH (Large Object Heap) komprimiert wird - wird std.mässig nicht komprimiert und kann fragmentieren (und der Speicher immer weiter wachsen)
+                // This is for compression the LOH (Large Object Heap) - this is not done by defualt and could fragment your memory and and memory could grow
                 // https://web.archive.org/web/20201027035717/https://www.wintellect.com/hey-who-stole-all-my-memory/
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                 GC.Collect();
@@ -147,10 +147,12 @@
             {
                 processId = Process.GetCurrentProcess().Id;
             }
-            var memoryStats = new MemoryStats();
 
-            memoryStats.CaptureDate = DateTime.UtcNow;
-            memoryStats.ProcessId = processId.Value;
+            var memoryStats = new MemoryStats
+            {
+                CaptureDate = DateTime.UtcNow,
+                ProcessId = processId.Value
+            };
 
             try
             {
@@ -198,6 +200,8 @@
                     memoryStats.Types.Remove(objKey);
                 }
             }
+
+            this.SnapshotTaken?.Invoke(this, new MemoryStatsTakenEventArgs(memoryStats));
 
             return memoryStats;
         }
@@ -293,11 +297,11 @@
             int lastDotIndex = typeName.LastIndexOf('.');
             if (lastDotIndex > 0)
             {
-                return typeName.Substring(0, lastDotIndex);  // Namespace extrahieren (buggy, muss durch einen Regex gemacht werden)
+                return typeName.Substring(0, lastDotIndex);  // Extract namespace (should be done by a regex, this approach is not complete)
             }
             else
             {
-                return "Global Namespace";  // Wenn kein Punkt gefunden wird, globaler Namespace
+                return "Global Namespace";  // No dot found, global namespace
             }
         }
     }

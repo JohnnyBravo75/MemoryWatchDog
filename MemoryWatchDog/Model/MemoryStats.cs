@@ -151,7 +151,7 @@
             }
         }
 
-        public string GetDefaultFilePath()
+        public static string GetDefaultFilePath()
         {
             string fileName;
             var execAsm = Assembly.GetExecutingAssembly();
