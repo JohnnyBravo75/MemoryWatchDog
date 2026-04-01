@@ -1,6 +1,7 @@
 namespace MemoryWatchDogApp
 {
     using System;
+    using System.Collections.ObjectModel;
     using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
@@ -17,6 +18,7 @@ namespace MemoryWatchDogApp
     {
         private readonly TypeInfo typeInfo;
         private readonly MemoryStats memoryStats;
+        private readonly Dictionary<ulong, ObjectInfo> addressLookup;
         private readonly List<ObjectDisplayItem> allDisplayItems;
 
         public ObjectDetailWindow(TypeInfo typeInfo, MemoryStats memoryStats = null)
@@ -24,6 +26,26 @@ namespace MemoryWatchDogApp
             this.InitializeComponent();
             this.typeInfo = typeInfo;
             this.memoryStats = memoryStats;
+
+            if (this.memoryStats != null)
+            {
+                this.addressLookup = new Dictionary<ulong, ObjectInfo>();
+                foreach (var typeEntry in this.memoryStats.Types.Values)
+                {
+                    foreach (var obj in typeEntry.Objects)
+                    {
+                        var addr = obj.Reference?.Address ?? 0;
+                        if (addr != 0 && !this.addressLookup.ContainsKey(addr))
+                        {
+                            this.addressLookup[addr] = obj;
+                        }
+                    }
+                }
+            }
+
+            this.RetentionTreeView.AddHandler(
+                TreeViewItem.ExpandedEvent,
+                new RoutedEventHandler(this.RetentionTreeItem_Expanded));
 
             this.TypeNameHeader.Text = typeInfo.TypeName;
             this.ObjectCountText.Text = $"{typeInfo.Objects.Count} objects";
@@ -62,6 +84,7 @@ namespace MemoryWatchDogApp
             if (this.ObjectListBox.SelectedItem is ObjectDisplayItem item)
             {
                 this.DrawDependencyGraph(item.ObjectInfo);
+                this.UpdateRetentionGraph(item.ObjectInfo);
             }
             else
             {
@@ -69,6 +92,11 @@ namespace MemoryWatchDogApp
                 this.NoSelectionText.Text = "Select an object from the list to view its dependencies.";
                 this.NoSelectionText.Visibility = Visibility.Visible;
                 this.GraphScrollViewer.Visibility = Visibility.Collapsed;
+
+                this.RetentionTreeView.ItemsSource = null;
+                this.RetentionNoSelectionText.Text = "Select an object from the list to view the retention graph.";
+                this.RetentionNoSelectionText.Visibility = Visibility.Visible;
+                this.RetentionTreeView.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -176,19 +204,44 @@ namespace MemoryWatchDogApp
             this.GraphCanvas.Height = refsStartY + totalRows * (nodeHeight + vGap) + topMargin;
         }
 
+        private void UpdateRetentionGraph(ObjectInfo obj)
+        {
+            if (this.addressLookup == null)
+            {
+                this.RetentionNoSelectionText.Text = "Retention graph requires snapshot data with memory stats.";
+                this.RetentionNoSelectionText.Visibility = Visibility.Visible;
+                this.RetentionTreeView.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            if (obj.References.Count == 0)
+            {
+                this.RetentionNoSelectionText.Text = "This object has no references.";
+                this.RetentionNoSelectionText.Visibility = Visibility.Visible;
+                this.RetentionTreeView.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            this.RetentionNoSelectionText.Visibility = Visibility.Collapsed;
+            this.RetentionTreeView.Visibility = Visibility.Visible;
+
+            var rootNode = new RetentionNode(obj, this.addressLookup, new HashSet<ulong>());
+            rootNode.LoadChildren();
+            this.RetentionTreeView.ItemsSource = new[] { rootNode };
+        }
+
+        private void RetentionTreeItem_Expanded(object sender, RoutedEventArgs e)
+        {
+            if (e.OriginalSource is TreeViewItem treeViewItem && treeViewItem.DataContext is RetentionNode node)
+            {
+                node.LoadChildren();
+            }
+        }
+
         private void OpenReferenceDetail(ReferenceInfo refInfo)
         {
-            // Look up the ObjectInfo by address across all captured types
             ObjectInfo matchedObject = null;
-            foreach (var typeEntry in this.memoryStats.Types.Values)
-            {
-                matchedObject = typeEntry.Objects
-                    .FirstOrDefault(o => o.Reference?.Address == refInfo.Address);
-                if (matchedObject != null)
-                {
-                    break;
-                }
-            }
+            this.addressLookup?.TryGetValue(refInfo.Address, out matchedObject);
 
             if (matchedObject == null)
             {
@@ -263,6 +316,92 @@ namespace MemoryWatchDogApp
                 this.SizeText = $"{obj.Size} bytes";
                 this.DisplayValueText = obj.DisplayValue;
                 this.ReferenceCountText = $"{obj.References.Count} refs";
+            }
+        }
+
+        private class RetentionNode
+        {
+            private static readonly RetentionNode Placeholder = new RetentionNode("", "", "");
+
+            private readonly List<ReferenceInfo> references;
+            private readonly Dictionary<ulong, ObjectInfo> addressLookup;
+            private readonly HashSet<ulong> ancestorAddresses;
+            private bool childrenLoaded;
+
+            public string DisplayName { get; }
+            public string DetailText { get; }
+            public string ReferenceCountText { get; }
+            public ObservableCollection<RetentionNode> Children { get; } = new ObservableCollection<RetentionNode>();
+
+            private RetentionNode(string displayName, string detailText, string referenceCountText)
+            {
+                this.DisplayName = displayName;
+                this.DetailText = detailText;
+                this.ReferenceCountText = referenceCountText;
+                this.childrenLoaded = true;
+            }
+
+            public RetentionNode(ObjectInfo obj, Dictionary<ulong, ObjectInfo> addressLookup, HashSet<ulong> ancestorAddresses)
+            {
+                this.DisplayName = obj.TypeName;
+                var addr = obj.Reference?.Address ?? 0;
+                this.DetailText = $"0x{addr:X} | {obj.Size} bytes";
+                this.references = obj.References;
+                this.addressLookup = addressLookup;
+                this.ReferenceCountText = obj.References.Count > 0 ? $"({obj.References.Count} refs)" : "";
+
+                this.ancestorAddresses = new HashSet<ulong>(ancestorAddresses);
+                if (addr != 0)
+                {
+                    this.ancestorAddresses.Add(addr);
+                }
+
+                if (obj.References.Count > 0)
+                {
+                    this.Children.Add(Placeholder);
+                }
+                else
+                {
+                    this.childrenLoaded = true;
+                }
+            }
+
+            public void LoadChildren()
+            {
+                if (this.childrenLoaded)
+                {
+                    return;
+                }
+
+                this.childrenLoaded = true;
+                this.Children.Clear();
+
+                if (this.references == null)
+                {
+                    return;
+                }
+
+                foreach (var refInfo in this.references)
+                {
+                    if (this.ancestorAddresses.Contains(refInfo.Address))
+                    {
+                        this.Children.Add(new RetentionNode(
+                            $"\u21BB {refInfo.TypeName}",
+                            $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
+                            "(cycle)"));
+                    }
+                    else if (this.addressLookup.TryGetValue(refInfo.Address, out var childObj))
+                    {
+                        this.Children.Add(new RetentionNode(childObj, this.addressLookup, this.ancestorAddresses));
+                    }
+                    else
+                    {
+                        this.Children.Add(new RetentionNode(
+                            refInfo.TypeName,
+                            $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
+                            "(not in snapshot)"));
+                    }
+                }
             }
         }
     }

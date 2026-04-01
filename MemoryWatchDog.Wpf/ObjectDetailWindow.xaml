@@ -50,21 +50,43 @@
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center"
                   VerticalAlignment="Stretch" Background="LightGray" Margin="3,0"/>
 
-        <!-- Right: Dependency graph -->
-        <Grid Grid.Column="2" Margin="5,0,0,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" FontWeight="Bold" FontSize="14"
-                 Text="Dependency Graph" Margin="0,0,0,10"/>
-            <TextBlock Grid.Row="1" x:Name="NoSelectionText"
-                 Text="Select an object from the list to view its dependencies."
-                 Foreground="Gray" FontStyle="Italic" VerticalAlignment="Top"/>
-            <ScrollViewer Grid.Row="1" x:Name="GraphScrollViewer" Visibility="Collapsed"
-                    VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                <Canvas x:Name="GraphCanvas"/>
-            </ScrollViewer>
-        </Grid>
+        <!-- Right: Dependency & Retention graphs -->
+        <TabControl Grid.Column="2" Margin="5,0,0,0">
+            <TabItem Header="Dependency Graph">
+                <Grid>
+                    <TextBlock x:Name="NoSelectionText"
+                         Text="Select an object from the list to view its dependencies."
+                         Foreground="Gray" FontStyle="Italic" VerticalAlignment="Top" Margin="5"/>
+                    <ScrollViewer x:Name="GraphScrollViewer" Visibility="Collapsed"
+                            VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <Canvas x:Name="GraphCanvas"/>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Retention Graph">
+                <Grid>
+                    <TextBlock x:Name="RetentionNoSelectionText"
+                         Text="Select an object from the list to view the retention graph."
+                         Foreground="Gray" FontStyle="Italic" VerticalAlignment="Top" Margin="5"/>
+                    <TreeView x:Name="RetentionTreeView" Visibility="Collapsed"
+                        VirtualizingStackPanel.IsVirtualizing="True"
+                        VirtualizingStackPanel.VirtualizationMode="Recycling"
+                        BorderThickness="0">
+                        <TreeView.ItemTemplate>
+                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="2">
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="11"
+                                         TextWrapping="NoWrap"/>
+                                    <TextBlock Text="{Binding DetailText}" Foreground="Gray" FontSize="10"
+                                         Margin="8,1,0,0" FontFamily="Consolas"/>
+                                    <TextBlock Text="{Binding ReferenceCountText}" Foreground="#E65100" FontSize="10"
+                                         Margin="8,1,0,0"/>
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Grid>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>
