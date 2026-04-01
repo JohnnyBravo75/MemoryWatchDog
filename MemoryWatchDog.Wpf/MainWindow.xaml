@@ -190,13 +190,13 @@
         <!-- Status bar -->
         <Grid Grid.Row="6">
             <StackPanel Orientation="Horizontal">
-                <Button x:Name="ExportTxtButton" Grid.Column="1" Content="Export TXT" Width="90"
+                <!--<Button x:Name="ExportTxtButton" Grid.Column="1" Content="Export TXT" Width="90"
                  Margin="0,0,5,0" Click="ExportTxtButton_Click" IsEnabled="False"
-                 ToolTip="Export the current memory snapshot to a text file"/>
-                <Button x:Name="ExportJsonButton" Grid.Column="2" Content="Export JSON" Width="90"
+                 ToolTip="Export the current memory snapshot to a text file"/>-->
+                <Button x:Name="ExportJsonButton" Grid.Column="2" Content="Export to file" Width="90"
                  Margin="0,0,10,0" Click="ExportJsonButton_Click" IsEnabled="False"
                  ToolTip="Export the current memory snapshot to a JSON file"/>
-                <Button x:Name="ImportJsonButton" Content="Import JSON" Width="90"
+                <Button x:Name="ImportJsonButton" Content="Import from file" Width="90"
                  Margin="0,0,5,0" Click="ImportJsonButton_Click"
                  ToolTip="Load a memory snapshot from a JSON file"/>
             </StackPanel>

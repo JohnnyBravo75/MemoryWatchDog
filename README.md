@@ -1,8 +1,8 @@
-# MemoryWatchDog
+# MemoryWatchDog - free and open-source Memory Profiler for .NET
 
-![](../main/MemoryWatchDog.Wpf/splashscreen.png)  
+![](../main/Assets/splashscreen.png)  
 
-Watch your memory and find leaks
+Watch your memory profile it and find leaks
 
 
 ## Why
@@ -13,19 +13,50 @@ Most memory debuggers suspend the target process to get consistent snapshots (wh
 They also take complete memory snapshots with hundreds of MB, which can increase memory pressure even more.
 
 ## Pros
+
 Can be integrated directly (just include the MemoryWatchDog.dll)
 Does not suspend the target process and can easily be used in live production environments
-Can create small aggregated snapshots (for an initial overview)
 Can periodically clean/defragment the Large Object Heap (LOH) and potentially solve some memory issues
 Can create automatic snapshots based on a filter (e.g., when memory exceeds a specific limit)
+Free
 
 ## Cons
+
 Not as powerful or comprehensive as commercial memory debuggers like (JustTrace, dotMemory, ANTS memory profiler,...)
 
 ## Usage
-Integrate the MemoryWatchDog.dll into your application.
 
-  
+	##Watchdog
+	 
+	 Integrate the MemoryWatchDog.dll into your application and let it clean your memory or write snapshots on demand (when filter matches)
+     
+	 ```
+	 var memWatchDog = new MemoryWatchDog
+	 {
+		 MinMemoryCleanupLimitBytes = 100000,
+		 WriteMemStatsFile = true,
+		 MemStatsFilter = new MemoryStatsFilter
+		 {
+			 AggregateObjects = true,
+			 MinObjectCount = 10,
+			 ExcludeNameSpaces = new List<string> { "System.", "Microsoft." }
+		 }
+	 };
+	 
+	 memWatchDog.StartWatching(new TimeSpan(0, 30, 0));
+	 ```
+
+ 
+	##On demand
+	 
+	 Use the GUI and profile on demand and dig through the objects
+     
+	 ![](../main/Assets/MainView.png)  
+	 
+	 ![](../main/Assets/ObjectDetails_Graph.png)  
+	 
+	 ![](../main/Assets/ObjectDetails_Retention.png)  
+	 
 ## License
 
 MIT
