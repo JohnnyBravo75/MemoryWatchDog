@@ -309,5 +309,60 @@
                 session?.Dispose();
             }
         }
+
+        public static LiveMemorySnapshot CaptureLiveSnapshot(int processId)
+        {
+            var snapshot = new LiveMemorySnapshot { Timestamp = DateTime.Now };
+
+            // OS-level metrics (throws if process exited)
+            var process = Process.GetProcessById(processId);
+            process.Refresh();
+            snapshot.WorkingSet = process.WorkingSet64;
+            snapshot.PrivateBytes = process.PrivateMemorySize64;
+
+            // Managed heap metrics via ClrMD (optional — may fail for non-.NET processes)
+            ClrRuntime runtime = null;
+            try
+            {
+                runtime = ClrUtil.AttachToClr(processId);
+                foreach (var segment in runtime.Heap.Segments)
+                {
+                    long size = (long)segment.Length;
+                    snapshot.GCHeapSize += size;
+
+                    switch (segment.Kind)
+                    {
+                        case GCSegmentKind.Generation0:
+                            snapshot.Gen0Size += size;
+                            break;
+                        case GCSegmentKind.Generation1:
+                            snapshot.Gen1Size += size;
+                            break;
+                        case GCSegmentKind.Generation2:
+                            snapshot.Gen2Size += size;
+                            break;
+                        case GCSegmentKind.Large:
+                            snapshot.LOHSize += size;
+                            break;
+                        case GCSegmentKind.Pinned:
+                            snapshot.POHSize += size;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            catch
+            {
+                // ClrMD attach may fail for non-.NET processes or under contention; keep OS metrics
+            }
+            finally
+            {
+                ClrUtil.DetachFromClr(runtime);
+            }
+
+            return snapshot;
+        }
+
     }
 }

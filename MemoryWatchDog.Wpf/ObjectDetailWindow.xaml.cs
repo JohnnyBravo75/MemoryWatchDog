@@ -399,7 +399,7 @@ namespace MemoryWatchDogApp
                         this.Children.Add(new RetentionNode(
                             refInfo.TypeName,
                             $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
-                            "(not in snapshot)"));
+                            ""));
                     }
                 }
             }

@@ -1,12 +1,15 @@
 ﻿namespace MemoryWatchDogApp
 {
     using System.ComponentModel;
+    using System.Diagnostics;
     using System.Threading;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Data;
     using System.Windows.Input;
+    using System.Windows.Threading;
     using MemoryWatchDog;
+    using Microsoft.Diagnostics.Runtime;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -18,6 +21,9 @@
         private string objectsFilterText = string.Empty;
         private MemoryStats? currentStats;
         private CancellationTokenSource? captureCts;
+        private DispatcherTimer? profilingTimer;
+        private bool isProfiling;
+        private bool isCollectingSnapshot;
 
         public MainWindow()
         {
@@ -35,6 +41,7 @@
                 this.SelectedProcessText.Text = $"{this.selectedProcess.ProcessName}  (PID {this.selectedProcess.Id})";
                 this.AttachButton.IsEnabled = true;
                 this.ForceGCButton.IsEnabled = true;
+                this.StartProfilingButton.IsEnabled = true;
             }
         }
 
@@ -71,6 +78,7 @@
             this.ExportTxtButton.IsEnabled = false;
             this.ExportJsonButton.IsEnabled = false;
             this.CancelButton.IsEnabled = true;
+            this.StartProfilingButton.IsEnabled = false;
             this.currentStats?.Clear();
             this.currentStats = null;
             this.StatusText.Text = $"Analyzing process {selectedProcess.ProcessName} (PID {selectedProcess.Id})...";
@@ -139,6 +147,7 @@
                 this.AttachButton.IsEnabled = this.selectedProcess != null;
                 this.SelectProcessButton.IsEnabled = true;
                 this.CancelButton.IsEnabled = false;
+                this.StartProfilingButton.IsEnabled = this.selectedProcess != null;
                 this.CaptureProgressPanel.Visibility = Visibility.Collapsed;
 
                 this.captureCts?.Dispose();
@@ -326,6 +335,99 @@
             var detailWindow = new ObjectDetailWindow(typeInfo, this.currentStats);
             detailWindow.Owner = this;
             detailWindow.Show();
+        }
+
+        private void StartProfilingButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.selectedProcess == null)
+            {
+                return;
+            }
+
+            this.isProfiling = true;
+            this.ProfilingPanel.Visibility = Visibility.Visible;
+            this.MemoryGraph.Clear();
+            this.StartProfilingButton.IsEnabled = false;
+            this.StopProfilingButton.IsEnabled = true;
+            this.AttachButton.IsEnabled = false;
+            this.SelectProcessButton.IsEnabled = false;
+            this.ProfilingStatusText.Text = $"Profiling {this.selectedProcess.ProcessName} (PID {this.selectedProcess.Id})...";
+
+            this.profilingTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(2)
+            };
+            this.profilingTimer.Tick += this.ProfilingTimer_Tick;
+
+            // Take first snapshot immediately
+            this.ProfilingTimer_Tick(this, EventArgs.Empty);
+            this.profilingTimer.Start();
+        }
+
+        private async void ProfilingTimer_Tick(object? sender, EventArgs e)
+        {
+            if (!this.isProfiling || this.selectedProcess == null || this.isCollectingSnapshot)
+            {
+                return;
+            }
+
+            this.isCollectingSnapshot = true;
+            int processId = this.selectedProcess.Id;
+
+            try
+            {
+                var snapshot = await Task.Run(() => ClrUtil.CaptureLiveSnapshot(processId));
+                if (this.isProfiling)
+                {
+                    this.MemoryGraph.AddSnapshot(snapshot);
+                    this.ProfilingStatusText.Text =
+                        $"Profiling {this.selectedProcess?.ProcessName} (PID {processId}) — {snapshot.Timestamp:HH:mm:ss}";
+                }
+            }
+            catch
+            {
+                this.StopProfiling();
+                this.ProfilingStatusText.Text = "Process exited or became unavailable.";
+            }
+            finally
+            {
+                this.isCollectingSnapshot = false;
+            }
+        }
+
+
+        private void StopProfilingButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.StopProfiling();
+        }
+
+        private void StopProfiling()
+        {
+            this.isProfiling = false;
+
+            if (this.profilingTimer != null)
+            {
+                this.profilingTimer.Stop();
+                this.profilingTimer.Tick -= this.ProfilingTimer_Tick;
+                this.profilingTimer = null;
+            }
+
+            this.StartProfilingButton.IsEnabled = this.selectedProcess != null;
+            this.StopProfilingButton.IsEnabled = false;
+            this.AttachButton.IsEnabled = this.selectedProcess != null;
+            this.SelectProcessButton.IsEnabled = true;
+
+            if (string.IsNullOrEmpty(this.ProfilingStatusText.Text) ||
+                !this.ProfilingStatusText.Text.Contains("unavailable"))
+            {
+                this.ProfilingStatusText.Text = "Profiling stopped.";
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            this.StopProfiling();
+            base.OnClosed(e);
         }
 
     }

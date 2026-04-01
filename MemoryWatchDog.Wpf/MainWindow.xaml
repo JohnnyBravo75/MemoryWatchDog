@@ -5,9 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MemoryWatchDogApp"
         mc:Ignorable="d"
-        Title=".NET MemoryWatchDog" Height="700" Width="1000" WindowStartupLocation="CenterScreen">
+        Title=".NET MemoryWatchDog" Height="850" Width="1100" WindowStartupLocation="CenterScreen">
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -17,7 +18,7 @@
         </Grid.RowDefinitions>
 
         <!-- Process Selection -->
-        <Grid Grid.Row="0" Margin="0,0,0,5">
+        <Grid Grid.Row="0" Margin="0,0,0,15">
             <Grid.RowDefinitions>
                 <RowDefinition  Height="Auto" />
                 <RowDefinition  Height="*" />
@@ -28,17 +29,44 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="ProcessHeader" Grid.Column="0" FontWeight="Bold" FontSize="14"
-                       Text="Process" VerticalAlignment="Center"/>
+                       Text="Process" VerticalAlignment="Center" Margin="0,0,0,3"/>
             <Button x:Name="SelectProcessButton" Grid.Row="1" Grid.Column="0" Content="Attach to Process"
                     Width="120" Click="SelectProcessButton_Click"
                     ToolTip="Open dialog to select a process"/>
             <TextBlock x:Name="SelectedProcessText" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
-                       Margin="10,0,0,0" FontSize="13"
+                       Margin="10,0,0,0" FontSize="14" Foreground="Blue"
                        Text="No process selected"/>
         </Grid>
 
+        <!-- Live Profiling Panel -->
+        <Border Grid.Row="1" x:Name="ProfilingPanel" Visibility="Visible"
+                BorderBrush="#336699" BorderThickness="1" CornerRadius="3"
+                Background="#F0F4FA" Margin="0,0,0,8" Padding="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="200"/>
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Margin="0,0,0,5">
+                    <TextBlock Text="Live Memory Profiling" FontWeight="Bold" FontSize="14"
+                               VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                    <TextBlock x:Name="ProfilingStatusText" VerticalAlignment="Center"
+                               Margin="15,0,0,0" Foreground="DarkBlue" DockPanel.Dock="Left"
+                               FontFamily="Consolas" FontSize="12"/>
+                    <Button x:Name="StopProfilingButton" Content="Stop Profiling" Width="110"
+                            DockPanel.Dock="Right" HorizontalAlignment="Right"
+                            Click="StopProfilingButton_Click" IsEnabled="False"
+                            ToolTip="Stop live memory profiling and detach from the process"/>
+                    <Button x:Name="StartProfilingButton" Content="Start Profiling" Width="110"
+                            Margin="5,0,0,0" DockPanel.Dock="Right" HorizontalAlignment="Right" Click="StartProfilingButton_Click" IsEnabled="False"
+                            ToolTip="Start continuous memory profiling of the selected process"/>
+                </DockPanel>
+                <local:MemoryGraphControl Grid.Row="1" x:Name="MemoryGraph"/>
+            </Grid>
+        </Border>
+
         <!-- Stats Filter -->
-        <Grid Grid.Row="1" Margin="0,10,0,5">
+        <Grid Grid.Row="2" Margin="0,10,0,5">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -49,26 +77,28 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="CaptureHeader" Grid.Row="0" Grid.Column="0" FontWeight="Bold" FontSize="14"
-           Text="Capture" VerticalAlignment="Center"/>
+           Text="Capture" VerticalAlignment="Center" Margin="0,0,0,3"/>
             <CheckBox x:Name="ExcludeSystemNamespacesCheckBox" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0"
                       Content="Exclude System Namespaces" VerticalAlignment="Center"
                       IsChecked="True"
                       ToolTip="Exclude common system namespaces (System, Microsoft, Windows, etc.) from heap object results"/>
             <CheckBox x:Name="AggregateObjectsCheckBox" Grid.Row="1" Grid.Column="1" Margin="0,0,10,0"
                       Content="Aggregate Objects" VerticalAlignment="Center"
-                      IsChecked="True"
+                      IsChecked="False"
                       ToolTip="Aggregate heap objects by type name (faster and uses less memory. For a detailed view, uncheck this option)"/>
             <Button x:Name="AttachButton" Grid.Row="1" Grid.Column="3" Content="Get Memory Snapshot" Width="150" 
                     Click="AttachButton_Click" IsEnabled="False"/>
             <Button x:Name="ForceGCButton" Grid.Row="1" Grid.Column="4" Content="Force GC" Width="80"
                     Margin="5,0,0,0" Click="ForceGCButton_Click" IsEnabled="False"
                     ToolTip="Force garbage collection on the attached process"/>
+
         </Grid>
 
         <!-- Capture Progress -->
-        <StackPanel Grid.Row="2" x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
+        <StackPanel Grid.Row="3" x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
             <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
                        Text="Objects: 0 | Types: 0" Foreground="DarkBlue"/>
             <ProgressBar x:Name="CaptureProgressBar" Width="200" Height="16" IsIndeterminate="True"/>
@@ -78,7 +108,7 @@
         </StackPanel>
 
         <!-- Stats Header -->
-        <Grid Grid.Row="3" Margin="0,10,0,5">
+        <Grid Grid.Row="4" Margin="0,10,0,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -93,7 +123,7 @@
         </Grid>
 
         <!-- Memory Stats Display -->
-        <TabControl Grid.Row="4">
+        <TabControl Grid.Row="5">
             <TabItem Header="Overview">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10">
@@ -158,7 +188,7 @@
         </TabControl>
 
         <!-- Status bar -->
-        <Grid Grid.Row="5">
+        <Grid Grid.Row="6">
             <StackPanel Orientation="Horizontal">
                 <Button x:Name="ExportTxtButton" Grid.Column="1" Content="Export TXT" Width="90"
                  Margin="0,0,5,0" Click="ExportTxtButton_Click" IsEnabled="False"
