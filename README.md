@@ -26,11 +26,11 @@ Not as powerful or comprehensive as commercial memory debuggers like (JustTrace,
 
 ## Usage
 
-	##Watchdog
-	 
-	 Integrate the MemoryWatchDog.dll into your application and let it clean your memory or write snapshots on demand (when filter matches)
+### Watchdog
+
+Integrate the MemoryWatchDog.dll into your application and let it clean your memory or write snapshots on demand (when filter matches)
      
-	 ```
+```
 	 var memWatchDog = new MemoryWatchDog
 	 {
 		 MinMemoryCleanupLimitBytes = 100000,
@@ -44,18 +44,18 @@ Not as powerful or comprehensive as commercial memory debuggers like (JustTrace,
 	 };
 	 
 	 memWatchDog.StartWatching(new TimeSpan(0, 30, 0));
-	 ```
+```
 
  
-	##On demand
-	 
-	 Use the GUI and profile on demand and dig through the objects
-     
-	 ![](../main/Assets/MainView.png)  
-	 
-	 ![](../main/Assets/ObjectDetails_Graph.png)  
-	 
-	 ![](../main/Assets/ObjectDetails_Retention.png)  
+### On demand
+
+Use the GUI and profile on demand and dig through the objects
+
+![](../main/Assets/MainView.png)  
+
+![](../main/Assets/ObjectDetails_Graph.png)  
+
+![](../main/Assets/ObjectDetails_Retention.png)  
 	 
 ## License
 
