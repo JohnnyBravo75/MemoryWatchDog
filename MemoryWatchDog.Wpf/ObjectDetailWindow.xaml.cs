@@ -1,8 +1,10 @@
 namespace MemoryWatchDogApp
 {
     using System;
+    using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
+    using System.Windows.Input;
     using System.Windows.Media;
     using System.Windows.Media.Effects;
     using System.Windows.Shapes;
@@ -14,12 +16,14 @@ namespace MemoryWatchDogApp
     public partial class ObjectDetailWindow : Window
     {
         private readonly TypeInfo typeInfo;
+        private readonly MemoryStats memoryStats;
         private readonly List<ObjectDisplayItem> allDisplayItems;
 
-        public ObjectDetailWindow(TypeInfo typeInfo)
+        public ObjectDetailWindow(TypeInfo typeInfo, MemoryStats memoryStats = null)
         {
             this.InitializeComponent();
             this.typeInfo = typeInfo;
+            this.memoryStats = memoryStats;
 
             this.TypeNameHeader.Text = typeInfo.TypeName;
             this.ObjectCountText.Text = $"{typeInfo.Objects.Count} objects";
@@ -132,6 +136,23 @@ namespace MemoryWatchDogApp
                     refInfo.TypeName,
                     $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
                     "#E65100", "#FFF3E0", nodeWidth);
+
+                // Make reference node clickable to drill down
+                if (this.memoryStats != null)
+                {
+                    refNode.Cursor = Cursors.Hand;
+                    refNode.ToolTip = "Double-click to explore references";
+                    var capturedRef = refInfo;
+                    refNode.MouseLeftButtonDown += (s, ev) =>
+                    {
+                        if (ev.ClickCount == 2)
+                        {
+                            this.OpenReferenceDetail(capturedRef);
+                            ev.Handled = true;
+                        }
+                    };
+                }
+
                 Canvas.SetLeft(refNode, x);
                 Canvas.SetTop(refNode, y);
                 this.GraphCanvas.Children.Add(refNode);
@@ -153,6 +174,38 @@ namespace MemoryWatchDogApp
             int totalRows = (int)Math.Ceiling((double)refCount / columns);
             this.GraphCanvas.Width = canvasWidth;
             this.GraphCanvas.Height = refsStartY + totalRows * (nodeHeight + vGap) + topMargin;
+        }
+
+        private void OpenReferenceDetail(ReferenceInfo refInfo)
+        {
+            // Look up the ObjectInfo by address across all captured types
+            ObjectInfo matchedObject = null;
+            foreach (var typeEntry in this.memoryStats.Types.Values)
+            {
+                matchedObject = typeEntry.Objects
+                    .FirstOrDefault(o => o.Reference?.Address == refInfo.Address);
+                if (matchedObject != null)
+                {
+                    break;
+                }
+            }
+
+            if (matchedObject == null)
+            {
+                MessageBox.Show(
+                    $"Object at 0x{refInfo.Address:X} ({refInfo.TypeName}) was not found in the captured snapshot.\n\nThis can happen when the object was filtered out during capture.",
+                    "Object Not Found",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var syntheticType = new TypeInfo { TypeName = matchedObject.TypeName };
+            syntheticType.AddObject(matchedObject);
+
+            var detailWindow = new ObjectDetailWindow(syntheticType, this.memoryStats);
+            detailWindow.Owner = this.Owner ?? this;
+            detailWindow.Show();
         }
 
         private static Border CreateNodeVisual(string title, string detail, string borderColor, string bgColor, double width)

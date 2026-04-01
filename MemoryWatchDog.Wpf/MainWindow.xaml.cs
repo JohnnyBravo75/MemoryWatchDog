@@ -34,6 +34,7 @@
                 this.selectedProcess = dialog.SelectedProcess;
                 this.SelectedProcessText.Text = $"{this.selectedProcess.ProcessName}  (PID {this.selectedProcess.Id})";
                 this.AttachButton.IsEnabled = true;
+                this.ForceGCButton.IsEnabled = true;
             }
         }
 
@@ -149,6 +150,43 @@
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             this.captureCts?.Cancel();
+        }
+
+        private async void ForceGCButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.selectedProcess == null)
+            {
+                return;
+            }
+
+            var process = this.selectedProcess;
+
+            this.ForceGCButton.IsEnabled = false;
+            this.StatusText.Text = $"Forcing GC on process {process.ProcessName} (PID {process.Id})...";
+
+            try
+            {
+                using (var watchDog = new MemoryWatchDog())
+                {
+                    await Task.Run(() => watchDog.ForceRemoteGC(process.Id));
+                }
+
+                this.StatusText.Text = $"GC triggered on process {process.ProcessName} (PID {process.Id})";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Failed to force GC:\n\n{ex.Message}\n\n" +
+                    $"Note: This requires the target to be a .NET process and may require Administrator privileges.",
+                    "Force GC Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                this.StatusText.Text = "Force GC failed";
+            }
+            finally
+            {
+                this.ForceGCButton.IsEnabled = this.selectedProcess != null;
+            }
         }
 
         private void DisplayMemoryStats(MemoryStats stats)
@@ -285,7 +323,7 @@
                 return;
             }
 
-            var detailWindow = new ObjectDetailWindow(typeInfo);
+            var detailWindow = new ObjectDetailWindow(typeInfo, this.currentStats);
             detailWindow.Owner = this;
             detailWindow.Show();
         }

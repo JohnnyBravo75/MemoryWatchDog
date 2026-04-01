@@ -6,7 +6,9 @@
     using System.Linq;
     using System.Runtime;
     using System.Threading;
+    using System.Threading.Tasks;
     using System.Timers;
+    using Microsoft.Diagnostics.NETCore.Client;
     using Microsoft.Diagnostics.Runtime;
 
     public partial class MemoryWatchDog : IDisposable
@@ -103,43 +105,19 @@
 
         public void CleanupMemory()
         {
-            try
-            {
-                GC.Collect();
-
-                // This is for compression the LOH (Large Object Heap) - this is not done by defualt and could fragment your memory and and memory could grow
-                // https://web.archive.org/web/20201027035717/https://www.wintellect.com/hey-who-stole-all-my-memory/
-                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                GC.Collect();
-            }
-            catch
-            {
-                // ignore
-            }
+            ClrUtil.ForceGC();
         }
+
+        public void ForceRemoteGC(int processId)
+        {
+            ClrUtil.ForceRemoteGC(processId);
+        }
+
 
         public string GetNETVersion(int processId)
         {
-            try
-            {
-                using (var dataTarget = DataTarget.AttachToProcess(processId, suspend: false))
-                {
-                    var clrInfo = dataTarget.ClrVersions.FirstOrDefault();
-                    if (clrInfo != null)
-                    {
-                        return clrInfo.Version?.ToString();
-                    }
-                }
-
-                return "";
-            }
-            catch
-            {
-                return "";
-            }
+            return ClrUtil.GetNETVersion(processId);
         }
-
-
 
 
 
@@ -155,7 +133,7 @@
             ClrRuntime runtime = null;
             try
             {
-                runtime = ClrReader.AttachToClr(processId);
+                runtime = ClrUtil.AttachToClr(processId);
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -195,7 +173,7 @@
             }
             finally
             {
-                ClrReader.DetachFromClr(runtime);
+                ClrUtil.DetachFromClr(runtime);
             }
         }
 
@@ -213,7 +191,7 @@
         private void ReadThreads(ClrRuntime runtime, MemoryStats memoryStats, CancellationToken cancellationToken)
         {
             // Resolve thread names from the heap by finding System.Threading.Thread objects
-            var threadNames = ClrReader.ResolveThreadNames(runtime);
+            var threadNames = ClrUtil.ResolveThreadNames(runtime);
 
             foreach (var thread in runtime.Threads.Where(x => x.IsAlive))
             {
@@ -280,7 +258,7 @@
                         if (type != null)
                         {
                             string typeName = type?.Name;
-                            string typeNamespace = this.GetNamespaceFromTypeName(typeName);
+                            string typeNamespace = CommonUtil.GetNamespaceFromTypeName(typeName);
                             string assemblyName = type.Module?.AssemblyName ?? "Unknown Assembly";
 
                             memoryStats.TotalSize += (long)obj.Size;
@@ -305,7 +283,7 @@
                                 Size = obj.Size,
                                 ElementType = type.ElementType.ToString(),
                                 AssemblyName = assemblyName,
-                                DisplayValue = ClrReader.GetDisplayValue(obj, type)
+                                DisplayValue = ClrUtil.GetDisplayValue(obj, type)
                             };
 
                             if (!memoryStatsFilter.AggregateObjects)
@@ -337,22 +315,5 @@
 
 
 
-        private string GetNamespaceFromTypeName(string typeName)
-        {
-            if (string.IsNullOrEmpty(typeName))
-            {
-                return "Unknown Namespace";
-            }
-
-            int lastDotIndex = typeName.LastIndexOf('.');
-            if (lastDotIndex > 0)
-            {
-                return typeName.Substring(0, lastDotIndex);  // Extract namespace (should be done by a regex, this approach is not complete)
-            }
-            else
-            {
-                return "Global Namespace";  // No dot found, global namespace
-            }
-        }
     }
 }

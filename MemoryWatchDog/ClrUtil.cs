@@ -4,10 +4,14 @@
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Runtime;
     using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Microsoft.Diagnostics.NETCore.Client;
     using Microsoft.Diagnostics.Runtime;
 
-    public class ClrReader
+    public class ClrUtil
     {
         public static ClrRuntime AttachToClr(int? processId = null)
         {
@@ -220,6 +224,90 @@
                 || typeName.Contains("ConcurrentQueue<")
                 || typeName.Contains("ConcurrentBag<")
                 || typeName.StartsWith("System.Linq.", StringComparison.Ordinal);
+        }
+
+        public static string GetNETVersion(int processId)
+        {
+            try
+            {
+                using (var dataTarget = DataTarget.AttachToProcess(processId, suspend: false))
+                {
+                    var clrInfo = dataTarget.ClrVersions.FirstOrDefault();
+                    if (clrInfo != null)
+                    {
+                        return clrInfo.Version?.ToString();
+                    }
+                }
+
+                return "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        public static void ForceGC()
+        {
+            try
+            {
+                GC.Collect();
+
+                // This is for compression the LOH (Large Object Heap) - this is not done by defualt and could fragment your memory and and memory could grow
+                // https://web.archive.org/web/20201027035717/https://www.wintellect.com/hey-who-stole-all-my-memory/
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect();
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        public static void ForceRemoteGC(int processId)
+        {
+            var client = new DiagnosticsClient(processId);
+            var providers = new List<EventPipeProvider>
+            {
+                new EventPipeProvider(
+                    "Microsoft-Windows-DotNETRuntime",
+                    System.Diagnostics.Tracing.EventLevel.Informational,
+                    (long)0x800000) // GCHeapCollect keyword - induces a GC on the target process
+            };
+
+            EventPipeSession session = null;
+            try
+            {
+                session = client.StartEventPipeSession(providers, requestRundown: false);
+
+                // Drain the event stream on a background thread to prevent Stop() from deadlocking.
+                // Without this, the pipe buffer fills up and Stop() blocks forever waiting for the
+                // runtime to acknowledge the stop command.
+                var drainTask = Task.Run(() =>
+                {
+                    try
+                    {
+                        var buffer = new byte[4096];
+                        while (session.EventStream.Read(buffer, 0, buffer.Length) > 0)
+                        {
+                        }
+                    }
+                    catch
+                    {
+                        // Stream will throw when session is stopped, which is expected
+                    }
+                });
+
+                // Give the runtime time to execute the induced GC
+                Thread.Sleep(1000);
+
+                session.Stop();
+                drainTask.Wait(TimeSpan.FromSeconds(5));
+            }
+            finally
+            {
+                session?.Dispose();
+            }
         }
     }
 }

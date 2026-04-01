@@ -145,9 +145,9 @@
                 $"Process Id:                        {stats.ProcessId}\n" +
                 $".NET Version:                      {stats.NETVersion}\n" +
                 $"\n" +
-                $"Total Heap Size:                   {Utils.FormatBytes(stats.TotalSize)}\n" +
-                $"Total Collected Object Size:       {Utils.FormatBytes(stats.TotalCollectedObjectSize)}\n" +
-                $"Total Excluded Size:               {Utils.FormatBytes(stats.TotalSize - stats.TotalCollectedObjectSize)}\n" +
+                $"Total Heap Size:                   {CommonUtil.FormatBytes(stats.TotalSize)}\n" +
+                $"Total Collected Object Size:       {CommonUtil.FormatBytes(stats.TotalCollectedObjectSize)}\n" +
+                $"Total Excluded Size:               {CommonUtil.FormatBytes(stats.TotalSize - stats.TotalCollectedObjectSize)}\n" +
                 $"\n" +
                 $"Threads Count:                     {stats.Threads.Count}\n" +
                 $"Active Worker Threads:             {stats.ActiveWorkerThreads}\n" +

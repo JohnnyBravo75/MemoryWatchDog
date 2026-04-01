@@ -62,6 +62,9 @@
                       ToolTip="Aggregate heap objects by type name (faster and uses less memory. For a detailed view, uncheck this option)"/>
             <Button x:Name="AttachButton" Grid.Row="1" Grid.Column="3" Content="Get Memory Snapshot" Width="150" 
                     Click="AttachButton_Click" IsEnabled="False"/>
+            <Button x:Name="ForceGCButton" Grid.Row="1" Grid.Column="4" Content="Force GC" Width="80"
+                    Margin="5,0,0,0" Click="ForceGCButton_Click" IsEnabled="False"
+                    ToolTip="Force garbage collection on the attached process"/>
         </Grid>
 
         <!-- Capture Progress -->
@@ -146,7 +149,7 @@
                         <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="120"/>
                         <DataGridTextColumn Header="Managed Thread ID" Binding="{Binding ManagedThreadId}" Width="140"/>
                         <DataGridTextColumn Header="OS Thread ID" Binding="{Binding OSThreadId}" Width="120"/>
-                        <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="180"/>
+                        <!--<DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="180"/>-->
                         <DataGridTextColumn Header="CurrentException" Binding="{Binding CurrentExceptionType}" Width="180"/>
                         <DataGridTextColumn Header="StackFrames" Binding="{Binding StackFramesAll}" Width="180"/>
                     </DataGrid.Columns>
