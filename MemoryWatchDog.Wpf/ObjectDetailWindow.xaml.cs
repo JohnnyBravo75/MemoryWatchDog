@@ -14,6 +14,7 @@ namespace MemoryWatchDogApp
     public partial class ObjectDetailWindow : Window
     {
         private readonly TypeInfo typeInfo;
+        private readonly List<ObjectDisplayItem> allDisplayItems;
 
         public ObjectDetailWindow(TypeInfo typeInfo)
         {
@@ -24,10 +25,32 @@ namespace MemoryWatchDogApp
             this.ObjectCountText.Text = $"{typeInfo.Objects.Count} objects";
             this.Title = $"Object Details — {typeInfo.TypeName}";
 
-            var displayItems = typeInfo.Objects
+            this.allDisplayItems = typeInfo.Objects
                 .Select(o => new ObjectDisplayItem(o))
                 .ToList();
-            this.ObjectListBox.ItemsSource = displayItems;
+            this.ApplyFilter();
+        }
+
+        private void FilterReferencedCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            this.ApplyFilter();
+        }
+
+        private void ApplyFilter()
+        {
+            if (this.allDisplayItems == null)
+            {
+                return;
+            }
+
+            var filtered = this.FilterReferencedCheckBox.IsChecked == true
+                ? this.allDisplayItems.Where(i => i.ObjectInfo.References.Count > 0).ToList()
+                : this.allDisplayItems;
+
+            this.ObjectListBox.ItemsSource = filtered;
+            this.ObjectCountText.Text = this.FilterReferencedCheckBox.IsChecked == true
+                ? $"{filtered.Count} of {this.allDisplayItems.Count} objects (with references)"
+                : $"{this.allDisplayItems.Count} objects";
         }
 
         private void ObjectListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -178,6 +201,7 @@ namespace MemoryWatchDogApp
             public string AddressText { get; }
             public string SizeText { get; }
             public string DisplayValueText { get; }
+            public string ReferenceCountText { get; }
 
             public ObjectDisplayItem(ObjectInfo obj)
             {
@@ -185,6 +209,7 @@ namespace MemoryWatchDogApp
                 this.AddressText = $"0x{obj.Reference?.Address:X}";
                 this.SizeText = $"{obj.Size} bytes";
                 this.DisplayValueText = obj.DisplayValue;
+                this.ReferenceCountText = $"{obj.References.Count} refs";
             }
         }
     }

@@ -18,7 +18,9 @@
     <DockPanel Grid.Column="0">
       <TextBlock DockPanel.Dock="Top" x:Name="TypeNameHeader" FontWeight="Bold" FontSize="14"
                  Margin="0,0,0,2" TextWrapping="Wrap"/>
-      <TextBlock DockPanel.Dock="Top" x:Name="ObjectCountText" Foreground="Gray" Margin="0,0,0,8"/>
+      <TextBlock DockPanel.Dock="Top" x:Name="ObjectCountText" Foreground="Gray" Margin="0,0,0,4"/>
+      <CheckBox DockPanel.Dock="Top" x:Name="FilterReferencedCheckBox" Content="Only with references"
+                Margin="0,0,0,8" Checked="FilterReferencedCheckBox_Changed" Unchecked="FilterReferencedCheckBox_Changed"/>
       <ListBox x:Name="ObjectListBox" SelectionChanged="ObjectListBox_SelectionChanged"
                HorizontalContentAlignment="Stretch">
         <ListBox.ItemTemplate>
@@ -29,10 +31,12 @@
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="{Binding ObjectInfo.TypeName}" FontSize="12"/>
-                <TextBlock Grid.Column="1" Text="{Binding AddressText}" FontFamily="Consolas" FontSize="12" Margin="8,0,0,0"/>
-                <TextBlock Grid.Column="2" Text="{Binding SizeText}" Foreground="Gray" FontSize="11" Margin="8,0,0,0"/>
+                <TextBlock Grid.Column="1" Text="{Binding ReferenceCountText}" Foreground="#E65100" FontSize="11" Margin="8,0,0,0"/>
+                <TextBlock Grid.Column="2" Text="{Binding AddressText}" FontFamily="Consolas" FontSize="12" Margin="8,0,0,0"/>
+                <TextBlock Grid.Column="3" Text="{Binding SizeText}" Foreground="Gray" FontSize="11" Margin="8,0,0,0"/>
               </Grid>
               <TextBlock Text="{Binding DisplayValueText}" Foreground="#1565C0" FontSize="11"
                          TextTrimming="CharacterEllipsis" Margin="0,2,0,0"

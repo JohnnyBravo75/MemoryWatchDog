@@ -10,54 +10,39 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="200"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" x:Name="ProcessHeader" Grid.Column="0" FontWeight="Bold" FontSize="14"
-            Text="Processes" VerticalAlignment="Center"/>
-
-        <!-- Process Search & Refresh -->
-        <Grid Grid.Row="1" Margin="0,0,0,5">
+        <!-- Process Selection -->
+        <Grid Grid.Row="0" Margin="0,0,0,5">
+            <Grid.RowDefinitions>
+                <RowDefinition  Height="Auto" />
+                <RowDefinition  Height="*" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Filter:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox x:Name="FilterTextBox" Grid.Column="1" Margin="0,0,5,0"
-                     TextChanged="FilterTextBox_TextChanged"
-                     ToolTip="Type to filter processes by name or PID"/>
-            <CheckBox x:Name="DotNetOnlyCheckBox" Grid.Column="2" Content=".NET only"
-                      VerticalAlignment="Center" Margin="0,0,10,0"
-                      Checked="DotNetOnlyCheckBox_Changed" Unchecked="DotNetOnlyCheckBox_Changed"
-                      ToolTip="Show only .NET processes (detects CLR version for each process)"/>
-            <Button x:Name="RefreshButton" Grid.Column="3" Content="Refresh" Width="80"
-                    Margin="0,0,5,0" Click="RefreshButton_Click"/>
-
+            <TextBlock x:Name="ProcessHeader" Grid.Column="0" FontWeight="Bold" FontSize="14"
+                       Text="Process" VerticalAlignment="Center"/>
+            <Button x:Name="SelectProcessButton" Grid.Row="1" Grid.Column="0" Content="Attach to Process"
+                    Width="120" Click="SelectProcessButton_Click"
+                    ToolTip="Open dialog to select a process"/>
+            <TextBlock x:Name="SelectedProcessText" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
+                       Margin="10,0,0,0" FontSize="13"
+                       Text="No process selected"/>
         </Grid>
 
-        <!-- Process List -->
-        <DataGrid x:Name="ProcessGrid" Grid.Row="2" AutoGenerateColumns="False"
-                  IsReadOnly="True" SelectionMode="Single" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray"
-                  SelectionChanged="ProcessGrid_SelectionChanged"
-                  CanUserSortColumns="True">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="PID" Binding="{Binding Id}" Width="70"/>
-                <DataGridTextColumn Header="Process Name" Binding="{Binding ProcessName}" Width="200"/>
-                <DataGridTextColumn Header="Memory (MB)" Binding="{Binding MemoryMB}" Width="100"/>
-                <DataGridTextColumn Header=".NET Version" Binding="{Binding NETVersion}" Width="100"/>
-                <DataGridTextColumn Header="Window Title" Binding="{Binding MainWindowTitle}" Width="*"/>
-            </DataGrid.Columns>
-        </DataGrid>
-
         <!-- Stats Filter -->
-        <Grid Grid.Row="3" Margin="0,10,0,5">
+        <Grid Grid.Row="1" Margin="0,10,0,5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -65,20 +50,22 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <CheckBox x:Name="ExcludeSystemNamespacesCheckBox" Grid.Column="0" Margin="0,0,10,0"
+            <TextBlock x:Name="CaptureHeader" Grid.Row="0" Grid.Column="0" FontWeight="Bold" FontSize="14"
+           Text="Capture" VerticalAlignment="Center"/>
+            <CheckBox x:Name="ExcludeSystemNamespacesCheckBox" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0"
                       Content="Exclude System Namespaces" VerticalAlignment="Center"
                       IsChecked="True"
                       ToolTip="Exclude common system namespaces (System, Microsoft, Windows, etc.) from heap object results"/>
-            <CheckBox x:Name="AggregateObjectsCheckBox" Grid.Column="1" Margin="0,0,10,0"
+            <CheckBox x:Name="AggregateObjectsCheckBox" Grid.Row="1" Grid.Column="1" Margin="0,0,10,0"
                       Content="Aggregate Objects" VerticalAlignment="Center"
                       IsChecked="True"
                       ToolTip="Aggregate heap objects by type name (faster and uses less memory. For a detailed view, uncheck this option)"/>
-            <Button x:Name="AttachButton" Grid.Column="3" Content="Get Memory Snapshot" Width="150" 
+            <Button x:Name="AttachButton" Grid.Row="1" Grid.Column="3" Content="Get Memory Snapshot" Width="150" 
                     Click="AttachButton_Click" IsEnabled="False"/>
         </Grid>
 
         <!-- Capture Progress -->
-        <StackPanel Grid.Row="4" x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
+        <StackPanel Grid.Row="2" x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
             <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
                        Text="Objects: 0 | Types: 0" Foreground="DarkBlue"/>
             <ProgressBar x:Name="CaptureProgressBar" Width="200" Height="16" IsIndeterminate="True"/>
@@ -88,7 +75,7 @@
         </StackPanel>
 
         <!-- Stats Header -->
-        <Grid Grid.Row="5" Margin="0,10,0,5">
+        <Grid Grid.Row="3" Margin="0,10,0,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -103,7 +90,7 @@
         </Grid>
 
         <!-- Memory Stats Display -->
-        <TabControl Grid.Row="6">
+        <TabControl Grid.Row="4">
             <TabItem Header="Overview">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10">
@@ -168,7 +155,7 @@
         </TabControl>
 
         <!-- Status bar -->
-        <Grid Grid.Row="7">
+        <Grid Grid.Row="5">
             <StackPanel Orientation="Horizontal">
                 <Button x:Name="ExportTxtButton" Grid.Column="1" Content="Export TXT" Width="90"
                  Margin="0,0,5,0" Click="ExportTxtButton_Click" IsEnabled="False"
