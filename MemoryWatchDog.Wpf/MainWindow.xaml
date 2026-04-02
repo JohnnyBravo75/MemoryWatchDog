@@ -132,10 +132,16 @@
             <!-- Snapshots List -->
             <DockPanel Grid.Column="0" Margin="0,0,5,0">
                 <TextBlock DockPanel.Dock="Top" Text="Snapshots" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
-                <Button x:Name="RemoveSnapshotButton" DockPanel.Dock="Bottom" Content="Remove Selected" Margin="0,4,0,0"
-                        Click="RemoveSnapshotButton_Click" IsEnabled="False"
-                        ToolTip="Remove the selected snapshot from the list"/>
-                <ListBox x:Name="SnapshotsListBox" SelectionChanged="SnapshotsListBox_SelectionChanged"
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Vertical" Margin="0,4,0,0">
+                    <Button x:Name="CompareSnapshotsButton" Content="Compare (Ctrl+Click 2)" Margin="0,0,0,3"
+                            Click="CompareSnapshotsButton_Click" IsEnabled="False"
+                            ToolTip="Select exactly two snapshots (Ctrl+Click) and compare them"/>
+                    <Button x:Name="RemoveSnapshotButton" Content="Remove Selected"
+                            Click="RemoveSnapshotButton_Click" IsEnabled="False"
+                            ToolTip="Remove the selected snapshot from the list"/>
+                </StackPanel>
+                <ListBox x:Name="SnapshotsListBox" SelectionMode="Extended"
+                         SelectionChanged="SnapshotsListBox_SelectionChanged"
                          HorizontalContentAlignment="Stretch">
                     <ListBox.ItemTemplate>
                         <DataTemplate>

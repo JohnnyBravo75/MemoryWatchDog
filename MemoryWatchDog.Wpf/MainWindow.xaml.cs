@@ -213,7 +213,7 @@
                 //this.ExportTxtButton.IsEnabled = true;
                 this.ExportJsonButton.IsEnabled = true;
 
-                this.StatsHeader.Text = $"Memory Statistics - {stats.ProcessName}  (PID {stats.ProcessId})";
+                this.StatsHeader.Text = $"Memory Statistics - {stats.ProcessName}  ({stats.CaptureDate})";
                 this.OverviewText.Text = stats.BuildOverviewStatsString();
 
                 var objectsList = stats.Types.Values
@@ -468,15 +468,45 @@
 
         private void SnapshotsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (this.SnapshotsListBox.SelectedItem is SnapshotItem item)
+            var selectedItems = this.SnapshotsListBox.SelectedItems;
+            int count = selectedItems.Count;
+
+            this.RemoveSnapshotButton.IsEnabled = count > 0;
+            this.CompareSnapshotsButton.IsEnabled = count == 2;
+
+            if (count == 1 && selectedItems[0] is SnapshotItem item)
             {
                 this.DisplayMemoryStats(item.Stats);
-                this.RemoveSnapshotButton.IsEnabled = true;
+            }
+        }
+
+        private void CompareSnapshotsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedItems = this.SnapshotsListBox.SelectedItems;
+            if (selectedItems.Count != 2)
+            {
+                return;
+            }
+
+            var itemA = (SnapshotItem)selectedItems[0]!;
+            var itemB = (SnapshotItem)selectedItems[1]!;
+
+            // Ensure older snapshot is A, newer is B
+            MemoryStats statsA, statsB;
+            if (itemA.Stats.CaptureDate <= itemB.Stats.CaptureDate)
+            {
+                statsA = itemA.Stats;
+                statsB = itemB.Stats;
             }
             else
             {
-                this.RemoveSnapshotButton.IsEnabled = false;
+                statsA = itemB.Stats;
+                statsB = itemA.Stats;
             }
+
+            var comparisonWindow = new SnapshotComparisonWindow(statsA, statsB);
+            comparisonWindow.Owner = this;
+            comparisonWindow.Show();
         }
 
         private void RemoveSnapshotButton_Click(object sender, RoutedEventArgs e)

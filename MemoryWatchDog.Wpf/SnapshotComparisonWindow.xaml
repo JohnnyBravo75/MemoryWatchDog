@@ -1,0 +1,102 @@
+<Window x:Class="MemoryWatchDogApp.SnapshotComparisonWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Snapshot Comparison" Height="700" Width="1200"
+        WindowStartupLocation="CenterOwner">
+  <Grid Margin="10">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- Header -->
+    <StackPanel Grid.Row="0" Margin="0,0,0,8">
+      <TextBlock FontWeight="Bold" FontSize="15" Text="Snapshot Comparison"/>
+      <TextBlock x:Name="SnapshotAText" Foreground="DarkBlue" FontSize="12" Margin="0,4,0,0"/>
+      <TextBlock x:Name="SnapshotBText" FontSize="12" Margin="0,2,0,0"/>
+    </StackPanel>
+
+    <!-- Filter bar -->
+    <Grid Grid.Row="1" Margin="0,0,0,5">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Grid.Column="0" Text="Filter Type Name:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+      <TextBox x:Name="FilterTextBox" Grid.Column="1" TextChanged="FilterTextBox_TextChanged"
+               ToolTip="Type to filter by type name"/>
+      <CheckBox x:Name="HideUnchangedCheckBox" Grid.Column="2" Content="Hide unchanged"
+                Margin="10,0,0,0" VerticalAlignment="Center"
+                Checked="HideUnchangedCheckBox_Changed" Unchecked="HideUnchangedCheckBox_Changed"
+                ToolTip="Show only types where the count or size changed between snapshots"/>
+    </Grid>
+
+    <!-- Comparison DataGrid -->
+    <DataGrid Grid.Row="2" x:Name="ComparisonGrid" AutoGenerateColumns="False"
+              IsReadOnly="True" CanUserSortColumns="True"
+              HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" Width="*"/>
+        <DataGridTextColumn Header="Count (old)" Binding="{Binding CountA}" Width="85"
+                            SortMemberPath="CountA">
+          <DataGridTextColumn.ElementStyle>
+            <Style TargetType="TextBlock">
+              <Setter Property="TextAlignment" Value="Right"/>
+            </Style>
+          </DataGridTextColumn.ElementStyle>
+        </DataGridTextColumn>
+        <DataGridTextColumn Header="Count (new)" Binding="{Binding CountB}" Width="85"
+                            SortMemberPath="CountB">
+          <DataGridTextColumn.ElementStyle>
+            <Style TargetType="TextBlock">
+              <Setter Property="TextAlignment" Value="Right"/>
+            </Style>
+          </DataGridTextColumn.ElementStyle>
+        </DataGridTextColumn>
+        <DataGridTemplateColumn Header="Count Diff" Width="90" SortMemberPath="CountDiff">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding CountDiffText}"
+                         Foreground="{Binding CountDiffBrush}"
+                         TextAlignment="Right" FontWeight="Bold"
+                         HorizontalAlignment="Stretch"/>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Size (old)" Binding="{Binding SizeAText}" Width="110"
+                            SortMemberPath="SizeA">
+          <DataGridTextColumn.ElementStyle>
+            <Style TargetType="TextBlock">
+              <Setter Property="TextAlignment" Value="Right"/>
+            </Style>
+          </DataGridTextColumn.ElementStyle>
+        </DataGridTextColumn>
+        <DataGridTextColumn Header="Size (new)" Binding="{Binding SizeBText}" Width="110"
+                            SortMemberPath="SizeB">
+          <DataGridTextColumn.ElementStyle>
+            <Style TargetType="TextBlock">
+              <Setter Property="TextAlignment" Value="Right"/>
+            </Style>
+          </DataGridTextColumn.ElementStyle>
+        </DataGridTextColumn>
+        <DataGridTemplateColumn Header="Size Diff" Width="110" SortMemberPath="SizeDiff">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding SizeDiffText}"
+                         Foreground="{Binding SizeDiffBrush}"
+                         TextAlignment="Right" FontWeight="Bold"
+                         HorizontalAlignment="Stretch"/>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Element Type" Binding="{Binding ElementType}" Width="120"/>
+      </DataGrid.Columns>
+    </DataGrid>
+
+    <!-- Status bar -->
+    <TextBlock Grid.Row="3" x:Name="StatusText" Foreground="Gray" Margin="0,5,0,0"/>
+  </Grid>
+</Window>
