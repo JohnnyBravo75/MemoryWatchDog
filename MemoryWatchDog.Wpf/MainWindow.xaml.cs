@@ -1,5 +1,6 @@
 ﻿namespace MemoryWatchDogApp
 {
+    using System.Collections.ObjectModel;
     using System.ComponentModel;
     using System.Diagnostics;
     using System.Threading;
@@ -24,10 +25,12 @@
         private DispatcherTimer? profilingTimer;
         private bool isProfiling;
         private bool isCollectingSnapshot;
+        private readonly ObservableCollection<SnapshotItem> snapshots = new();
 
         public MainWindow()
         {
             this.InitializeComponent();
+            this.SnapshotsListBox.ItemsSource = this.snapshots;
         }
 
         private void SelectProcessButton_Click(object sender, RoutedEventArgs e)
@@ -79,7 +82,6 @@
             this.ExportJsonButton.IsEnabled = false;
             this.CancelButton.IsEnabled = true;
             this.StartProfilingButton.IsEnabled = false;
-            this.currentStats?.Clear();
             this.currentStats = null;
             this.StatusText.Text = $"Analyzing process {selectedProcess.ProcessName} (PID {selectedProcess.Id})...";
             this.OverviewText.Text = "Loading memory statistics, please wait...";
@@ -128,7 +130,7 @@
                     return;
                 }
 
-                this.DisplayMemoryStats(stats);
+                this.AddSnapshotAndSelect(stats);
             }
             catch (OperationCanceledException)
             {
@@ -272,7 +274,7 @@
                         return;
                     }
 
-                    this.DisplayMemoryStats(stats);
+                    this.AddSnapshotAndSelect(stats);
                 }
                 catch (Exception ex)
                 {
@@ -455,6 +457,59 @@
         {
             this.StopProfiling();
             base.OnClosed(e);
+        }
+
+        private void AddSnapshotAndSelect(MemoryStats stats)
+        {
+            var item = new SnapshotItem(stats);
+            this.snapshots.Add(item);
+            this.SnapshotsListBox.SelectedItem = item;
+        }
+
+        private void SnapshotsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (this.SnapshotsListBox.SelectedItem is SnapshotItem item)
+            {
+                this.DisplayMemoryStats(item.Stats);
+                this.RemoveSnapshotButton.IsEnabled = true;
+            }
+            else
+            {
+                this.RemoveSnapshotButton.IsEnabled = false;
+            }
+        }
+
+        private void RemoveSnapshotButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.SnapshotsListBox.SelectedItem is SnapshotItem item)
+            {
+                int index = this.snapshots.IndexOf(item);
+                this.snapshots.Remove(item);
+
+                if (this.snapshots.Count > 0)
+                {
+                    this.SnapshotsListBox.SelectedIndex = Math.Min(index, this.snapshots.Count - 1);
+                }
+                else
+                {
+                    this.DisplayMemoryStats(null!);
+                    this.RemoveSnapshotButton.IsEnabled = false;
+                }
+            }
+        }
+
+        private class SnapshotItem
+        {
+            public MemoryStats Stats { get; }
+            public string DisplayDate { get; }
+            public string DisplayProcess { get; }
+
+            public SnapshotItem(MemoryStats stats)
+            {
+                this.Stats = stats;
+                this.DisplayDate = stats.CaptureDate.ToString("yyyy-MM-dd HH:mm:ss");
+                this.DisplayProcess = $"{stats.ProcessName} (PID {stats.ProcessId})";
+            }
         }
 
         private class DisposedObjectItem

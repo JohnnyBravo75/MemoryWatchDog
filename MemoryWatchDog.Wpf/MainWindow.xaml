@@ -123,7 +123,32 @@
         </Grid>
 
         <!-- Memory Stats Display -->
-        <TabControl Grid.Row="5">
+        <Grid Grid.Row="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Snapshots List -->
+            <DockPanel Grid.Column="0" Margin="0,0,5,0">
+                <TextBlock DockPanel.Dock="Top" Text="Snapshots" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
+                <Button x:Name="RemoveSnapshotButton" DockPanel.Dock="Bottom" Content="Remove Selected" Margin="0,4,0,0"
+                        Click="RemoveSnapshotButton_Click" IsEnabled="False"
+                        ToolTip="Remove the selected snapshot from the list"/>
+                <ListBox x:Name="SnapshotsListBox" SelectionChanged="SnapshotsListBox_SelectionChanged"
+                         HorizontalContentAlignment="Stretch">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="2">
+                                <TextBlock Text="{Binding DisplayDate}" FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Text="{Binding DisplayProcess}" FontSize="11" Foreground="Gray"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <TabControl Grid.Column="1">
             <TabItem Header="Overview">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10">
@@ -224,6 +249,7 @@
                 </DockPanel>
             </TabItem>
         </TabControl>
+        </Grid>
 
         <!-- Status bar -->
         <Grid Grid.Row="6">
