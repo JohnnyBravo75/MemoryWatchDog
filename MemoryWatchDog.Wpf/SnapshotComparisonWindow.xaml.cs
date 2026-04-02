@@ -12,15 +12,21 @@ namespace MemoryWatchDogApp
 
     public partial class SnapshotComparisonWindow : Window
     {
-        private readonly List<ComparisonRow> allRows;
+        private MemoryStats? statsA;
+        private MemoryStats? statsB;
+        private List<ComparisonRow>? allRows;
         private ICollectionView? comparisonView;
         private string filterText = string.Empty;
 
         public SnapshotComparisonWindow(MemoryStats statsA, MemoryStats statsB)
         {
             this.InitializeComponent();
+            this.statsA = statsA;
+            this.statsB = statsB;
 
-            this.SnapshotAText.Text = $"old:  {statsA.CaptureDate:yyyy-MM-dd HH:mm:ss}  —  {statsA.ProcessName} (PID {statsA.ProcessId})";
+            this.ComparisonGrid.SelectionChanged += this.ComparisonGrid_SelectionChanged;
+
+            this.SnapshotAText.Text = $"Old:  {statsA.CaptureDate:yyyy-MM-dd HH:mm:ss}  —  {statsA.ProcessName} (PID {statsA.ProcessId})";
 
             this.allRows = BuildComparisonRows(statsA, statsB);
             this.ComparisonGrid.ItemsSource = this.allRows;
@@ -33,6 +39,20 @@ namespace MemoryWatchDogApp
             this.StatusText.Text = $"{this.allRows.Count} types total — {changed} changed, {added} new, {removed} removed";
 
             this.BuildSnapshotBHeader(statsB);
+
+            this.Closed += this.SnapshotComparisonWindow_Closed;
+        }
+
+        private void SnapshotComparisonWindow_Closed(object? sender, EventArgs e)
+        {
+            this.ComparisonGrid.SelectionChanged -= this.ComparisonGrid_SelectionChanged;
+            this.Closed -= this.SnapshotComparisonWindow_Closed;
+
+            this.statsA = null;
+            this.statsB = null;
+            this.allRows = null;
+
+            this.Owner = null;
         }
 
         private void BuildSnapshotBHeader(MemoryStats statsB)
@@ -42,7 +62,7 @@ namespace MemoryWatchDogApp
 
             this.SnapshotBText.Inlines.Clear();
             this.SnapshotBText.Inlines.Add(new Run(
-                $"new:  {statsB.CaptureDate:yyyy-MM-dd HH:mm:ss}  —  {statsB.ProcessName} (PID {statsB.ProcessId})    ")
+                $"New:  {statsB.CaptureDate:yyyy-MM-dd HH:mm:ss}  —  {statsB.ProcessName} (PID {statsB.ProcessId})    ")
             { Foreground = Brushes.DarkBlue });
 
             // Object count diff
@@ -114,6 +134,46 @@ namespace MemoryWatchDogApp
         private void HideUnchangedCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             this.comparisonView?.Refresh();
+        }
+
+        private void ComparisonGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            bool hasSelection = this.ComparisonGrid.SelectedItem is ComparisonRow;
+            this.DetailOldButton.IsEnabled = hasSelection;
+            this.DetailNewButton.IsEnabled = hasSelection;
+        }
+
+        private void DetailOldButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.OpenDetailWindow(this.statsA, "Old");
+        }
+
+        private void DetailNewButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.OpenDetailWindow(this.statsB, "New");
+        }
+
+        private void OpenDetailWindow(MemoryStats stats, string label = "")
+        {
+            if (this.ComparisonGrid.SelectedItem is not ComparisonRow row)
+            {
+                return;
+            }
+
+            if (!stats.Types.TryGetValue(row.TypeName, out var typeInfo))
+            {
+                MessageBox.Show(
+                    $"Type '{row.TypeName}' does not exist in the {label} snapshot.",
+                    "Type Not Found",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var detailWindow = new ObjectDetailWindow(typeInfo, stats);
+            detailWindow.Owner = this;
+            detailWindow.Title = $"Object Details ({label}) — {row.TypeName}";
+            detailWindow.Show();
         }
 
         internal class ComparisonRow

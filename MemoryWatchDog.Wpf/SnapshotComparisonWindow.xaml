@@ -9,6 +9,7 @@
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
       <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
     <!-- Header -->
@@ -40,7 +41,7 @@
               HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray">
       <DataGrid.Columns>
         <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" Width="*"/>
-        <DataGridTextColumn Header="Count (old)" Binding="{Binding CountA}" Width="85"
+        <DataGridTextColumn Header="Count (Old)" Binding="{Binding CountA}" Width="85"
                             SortMemberPath="CountA">
           <DataGridTextColumn.ElementStyle>
             <Style TargetType="TextBlock">
@@ -48,7 +49,7 @@
             </Style>
           </DataGridTextColumn.ElementStyle>
         </DataGridTextColumn>
-        <DataGridTextColumn Header="Count (new)" Binding="{Binding CountB}" Width="85"
+        <DataGridTextColumn Header="Count (New)" Binding="{Binding CountB}" Width="85"
                             SortMemberPath="CountB">
           <DataGridTextColumn.ElementStyle>
             <Style TargetType="TextBlock">
@@ -56,7 +57,7 @@
             </Style>
           </DataGridTextColumn.ElementStyle>
         </DataGridTextColumn>
-        <DataGridTemplateColumn Header="Count Diff" Width="90" SortMemberPath="CountDiff">
+        <DataGridTemplateColumn Header="Count (Diff)" Width="90" SortMemberPath="CountDiff">
           <DataGridTemplateColumn.CellTemplate>
             <DataTemplate>
               <TextBlock Text="{Binding CountDiffText}"
@@ -66,7 +67,7 @@
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
-        <DataGridTextColumn Header="Size (old)" Binding="{Binding SizeAText}" Width="110"
+        <DataGridTextColumn Header="Size (Old)" Binding="{Binding SizeAText}" Width="110"
                             SortMemberPath="SizeA">
           <DataGridTextColumn.ElementStyle>
             <Style TargetType="TextBlock">
@@ -74,7 +75,7 @@
             </Style>
           </DataGridTextColumn.ElementStyle>
         </DataGridTextColumn>
-        <DataGridTextColumn Header="Size (new)" Binding="{Binding SizeBText}" Width="110"
+        <DataGridTextColumn Header="Size (New)" Binding="{Binding SizeBText}" Width="110"
                             SortMemberPath="SizeB">
           <DataGridTextColumn.ElementStyle>
             <Style TargetType="TextBlock">
@@ -82,7 +83,7 @@
             </Style>
           </DataGridTextColumn.ElementStyle>
         </DataGridTextColumn>
-        <DataGridTemplateColumn Header="Size Diff" Width="110" SortMemberPath="SizeDiff">
+        <DataGridTemplateColumn Header="Size (Diff)" Width="110" SortMemberPath="SizeDiff">
           <DataGridTemplateColumn.CellTemplate>
             <DataTemplate>
               <TextBlock Text="{Binding SizeDiffText}"
@@ -96,7 +97,17 @@
       </DataGrid.Columns>
     </DataGrid>
 
+    <!-- Detail buttons -->
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
+        <Button x:Name="DetailOldButton" Content="Show Details (Old)" Width="140"
+                Click="DetailOldButton_Click" IsEnabled="False"
+                ToolTip="Open object details for the selected type from the old snapshot"/>
+        <Button x:Name="DetailNewButton" Content="Show Details (New)" Width="140"
+                Margin="5,0,0,0" Click="DetailNewButton_Click" IsEnabled="False"
+                ToolTip="Open object details for the selected type from the new snapshot"/>
+    </StackPanel>
+
     <!-- Status bar -->
-    <TextBlock Grid.Row="3" x:Name="StatusText" Foreground="Gray" Margin="0,5,0,0"/>
+    <TextBlock Grid.Row="4" x:Name="StatusText" Foreground="Gray" Margin="0,5,0,0"/>
   </Grid>
 </Window>

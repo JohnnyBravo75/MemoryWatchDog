@@ -10,7 +10,6 @@
     using System.Windows.Input;
     using System.Windows.Threading;
     using MemoryWatchDog;
-    using Microsoft.Diagnostics.Runtime;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -25,7 +24,7 @@
         private DispatcherTimer? profilingTimer;
         private bool isProfiling;
         private bool isCollectingSnapshot;
-        private readonly ObservableCollection<SnapshotItem> snapshots = new();
+        private ObservableCollection<SnapshotItem> snapshots = new ObservableCollection<SnapshotItem>();
 
         public MainWindow()
         {
@@ -59,7 +58,7 @@
             if (string.IsNullOrWhiteSpace(this.objectsFilterText))
                 return true;
 
-            if (item is global::MemoryWatchDog.ObjectInfo obj)
+            if (item is ObjectInfo obj)
             {
                 return obj.TypeName.Contains(this.objectsFilterText, StringComparison.OrdinalIgnoreCase);
             }
@@ -514,6 +513,7 @@
             if (this.SnapshotsListBox.SelectedItem is SnapshotItem item)
             {
                 int index = this.snapshots.IndexOf(item);
+                item.Stats?.Clear();
                 this.snapshots.Remove(item);
 
                 if (this.snapshots.Count > 0)

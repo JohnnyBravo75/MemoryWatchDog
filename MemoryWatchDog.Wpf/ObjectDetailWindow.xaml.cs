@@ -16,16 +16,17 @@ namespace MemoryWatchDogApp
     /// </summary>
     public partial class ObjectDetailWindow : Window
     {
-        private readonly TypeInfo typeInfo;
-        private readonly MemoryStats memoryStats;
-        private readonly Dictionary<ulong, ObjectInfo> addressLookup;
-        private readonly List<ObjectDisplayItem> allDisplayItems;
-        private readonly List<string> systemNamespaces = MemoryStatsFilter.GetSystemNamespaces();
-        private ObjectInfo currentSelectedObject;
+        private TypeInfo? typeInfo;
+        private MemoryStats? memoryStats;
+        private Dictionary<ulong, ObjectInfo>? addressLookup;
+        private List<ObjectDisplayItem>? allDisplayItems;
+        private List<string>? systemNamespaces = MemoryStatsFilter.GetSystemNamespaces();
+        private ObjectInfo? currentSelectedObject;
 
         public ObjectDetailWindow(TypeInfo typeInfo, MemoryStats memoryStats = null)
         {
             this.InitializeComponent();
+
             this.typeInfo = typeInfo;
             this.memoryStats = memoryStats;
 
@@ -57,6 +58,19 @@ namespace MemoryWatchDogApp
                 .Select(o => new ObjectDisplayItem(o))
                 .ToList();
             this.ApplyFilter();
+
+            this.Closed += this.ObjectDetailWindow_Closed;
+        }
+
+        private void ObjectDetailWindow_Closed(object? sender, EventArgs e)
+        {
+            this.Closed -= this.ObjectDetailWindow_Closed;
+            this.memoryStats = null;
+            this.addressLookup = null;
+            this.allDisplayItems = null;
+            this.currentSelectedObject = null;
+            this.typeInfo = null;
+            this.Owner = null;
         }
 
         private void FilterReferencedCheckBox_Changed(object sender, RoutedEventArgs e)
