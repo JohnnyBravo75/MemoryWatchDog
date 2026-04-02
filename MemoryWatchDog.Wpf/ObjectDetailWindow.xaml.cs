@@ -299,6 +299,36 @@ namespace MemoryWatchDogApp
             }
         }
 
+        private void RetentionTreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+        {
+            if (e.NewValue is RetentionNode node && !string.IsNullOrEmpty(node.DisplayName))
+            {
+                this.RetentionDetailPlaceholder.Visibility = Visibility.Collapsed;
+                this.RetentionDetailType.Visibility = Visibility.Visible;
+                this.RetentionDetailInfo.Visibility = Visibility.Visible;
+
+                this.RetentionDetailType.Text = node.DisplayName;
+                this.RetentionDetailInfo.Text = node.DetailText;
+
+                if (!string.IsNullOrEmpty(node.DisplayValue))
+                {
+                    this.RetentionDetailValue.Text = node.DisplayValue;
+                    this.RetentionDetailValue.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    this.RetentionDetailValue.Visibility = Visibility.Collapsed;
+                }
+            }
+            else
+            {
+                this.RetentionDetailPlaceholder.Visibility = Visibility.Visible;
+                this.RetentionDetailType.Visibility = Visibility.Collapsed;
+                this.RetentionDetailInfo.Visibility = Visibility.Collapsed;
+                this.RetentionDetailValue.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void OpenReferenceDetail(ReferenceInfo refInfo)
         {
             ObjectInfo matchedObject = null;
@@ -409,15 +439,17 @@ namespace MemoryWatchDogApp
 
             public string DisplayName { get; }
             public string DetailText { get; }
+            public string DisplayValue { get; }
             public string ReferenceCountText { get; }
             public bool IsDisposed { get; }
             public string DisposedText { get; }
             public ObservableCollection<RetentionNode> Children { get; } = new ObservableCollection<RetentionNode>();
 
-            private RetentionNode(string displayName, string detailText, string referenceCountText, bool isDisposed)
+            private RetentionNode(string displayName, string detailText, string referenceCountText, bool isDisposed, string displayValue = "")
             {
                 this.DisplayName = displayName;
                 this.DetailText = detailText;
+                this.DisplayValue = displayValue;
                 this.ReferenceCountText = referenceCountText;
                 this.IsDisposed = isDisposed;
                 this.DisposedText = isDisposed ? "(disposed)" : "";
@@ -429,6 +461,7 @@ namespace MemoryWatchDogApp
                 this.DisplayName = obj.TypeName;
                 var addr = obj.Reference?.Address ?? 0;
                 this.DetailText = $"0x{addr:X} | {obj.Size} bytes";
+                this.DisplayValue = obj.DisplayValue ?? "";
                 this.references = obj.References;
                 this.addressLookup = addressLookup;
                 this.excludeFilter = excludeFilter;
@@ -476,11 +509,23 @@ namespace MemoryWatchDogApp
 
                     if (this.ancestorAddresses.Contains(refInfo.Address))
                     {
+                        string cycleDisplayValue = "";
+                        if (this.addressLookup.TryGetValue(refInfo.Address, out var cycleObj))
+                        {
+                            cycleDisplayValue = cycleObj.DisplayValue ?? "";
+                        }
+
+                        if (string.IsNullOrEmpty(cycleDisplayValue))
+                        {
+                            cycleDisplayValue = refInfo.DisplayValue ?? "";
+                        }
+
                         this.Children.Add(new RetentionNode(
                             $"\u21BB {refInfo.TypeName}",
                             $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
                             "(cycle)",
-                            refInfo.IsDisposed));
+                            refInfo.IsDisposed,
+                            cycleDisplayValue));
                     }
                     else if (this.addressLookup.TryGetValue(refInfo.Address, out var childObj))
                     {
@@ -488,11 +533,23 @@ namespace MemoryWatchDogApp
                     }
                     else
                     {
+                        string leafDisplayValue = "";
+                        if (this.addressLookup.TryGetValue(refInfo.Address, out var leafObj))
+                        {
+                            leafDisplayValue = leafObj.DisplayValue ?? "";
+                        }
+
+                        if (string.IsNullOrEmpty(leafDisplayValue))
+                        {
+                            leafDisplayValue = refInfo.DisplayValue ?? "";
+                        }
+
                         this.Children.Add(new RetentionNode(
                             refInfo.TypeName,
                             $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
                             "",
-                            refInfo.IsDisposed));
+                            refInfo.IsDisposed,
+                            leafDisplayValue));
                     }
                 }
             }

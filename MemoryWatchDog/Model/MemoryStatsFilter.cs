@@ -10,6 +10,8 @@
 
         public bool AggregateObjects { get; set; } = true;
 
+        public bool CaptureDisplayValues { get; set; } = true;
+
         public MemoryStatsFilter()
         {
             this.ExcludeNameSpaces = GetSystemNamespaces();

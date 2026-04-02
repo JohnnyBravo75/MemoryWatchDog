@@ -20,12 +20,21 @@ namespace MemoryWatchDogApp
         private bool dotNetOnlyFilter = false;
         private bool dotNetVersionsDetected = false;
 
-        public ProcessInfo? SelectedProcess { get; private set; }
+        public ProcessInfo? SelectedProcess { get; set; }
 
         public ProcessSelectionDialog()
         {
             this.InitializeComponent();
             this.LoadProcesses();
+
+            this.Closed += this.ProcessSelectionDialog_Closed;
+        }
+
+        private void ProcessSelectionDialog_Closed(object? sender, EventArgs e)
+        {
+            this.Closed -= this.ProcessSelectionDialog_Closed;
+            this.allProcesses.Clear();
+            this.Owner = null;
         }
 
         private void LoadProcesses()

@@ -136,17 +136,25 @@
                     return "";
                 }
 
+                var displayValue = "";
+                int fieldCount = 0;
                 foreach (var field in fields)
                 {
-                    if (field?.Name == null || !IdentityFieldNames.Contains(field.Name))
+                    if (field?.Name == null)
                     {
                         continue;
                     }
 
-                    string displayValue = TryReadFieldValue(obj, field);
-                    if (!string.IsNullOrEmpty(displayValue))
+                    string fieldValue = TryReadFieldValue(obj, field);
+                    if (!string.IsNullOrEmpty(fieldValue))
                     {
-                        return $"{field.Name} = {displayValue}";
+                        displayValue += $"{field.Name} = {fieldValue};  ";
+                    }
+
+                    fieldCount++;
+                    if (IdentityFieldNames.Contains(field.Name) || fieldCount >= 7)
+                    {
+                        return displayValue;
                     }
                 }
             }
@@ -288,6 +296,7 @@
             try
             {
                 GC.Collect();
+                GC.WaitForPendingFinalizers();
 
                 // This is for compression the LOH (Large Object Heap) - this is not done by defualt and could fragment your memory and and memory could grow
                 // https://web.archive.org/web/20201027035717/https://www.wintellect.com/hey-who-stole-all-my-memory/

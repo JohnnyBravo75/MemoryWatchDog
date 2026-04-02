@@ -283,7 +283,7 @@
                                 Size = obj.Size,
                                 ElementType = type.ElementType.ToString(),
                                 AssemblyName = assemblyName,
-                                DisplayValue = ClrUtil.GetDisplayValue(obj, type),
+                                DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrUtil.GetDisplayValue(obj, type) : "",
                                 IsDisposed = ClrUtil.IsObjectDisposed(obj, type)
                             };
 
@@ -297,7 +297,8 @@
                                         TypeName = reference.Type?.Name ?? "Unknown",
                                         Address = reference.Address,
                                         Size = reference.Size,
-                                        IsDisposed = reference.Type != null ? ClrUtil.IsObjectDisposed(reference, reference.Type) : false
+                                        IsDisposed = reference.Type != null ? ClrUtil.IsObjectDisposed(reference, reference.Type) : false,
+                                        DisplayValue = memoryStatsFilter.CaptureDisplayValues && reference.Type != null ? ClrUtil.GetDisplayValue(reference, reference.Type) : ""
                                     });
                                 }
                             }

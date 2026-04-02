@@ -75,13 +75,19 @@
                 </TabItem>
                 <TabItem Header="Retention Graph">
                     <Grid>
-                        <TextBlock x:Name="RetentionNoSelectionText"
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" x:Name="RetentionNoSelectionText"
                          Text="Select an object from the list to view the retention graph."
                          Foreground="Gray" FontStyle="Italic" VerticalAlignment="Top" Margin="5"/>
-                        <TreeView x:Name="RetentionTreeView" Visibility="Collapsed"
+                        <TreeView Grid.Row="0" x:Name="RetentionTreeView" Visibility="Collapsed"
                         VirtualizingStackPanel.IsVirtualizing="True"
                         VirtualizingStackPanel.VirtualizationMode="Recycling"
-                        BorderThickness="0">
+                        BorderThickness="0"
+                        SelectedItemChanged="RetentionTreeView_SelectedItemChanged">
                             <TreeView.ItemTemplate>
                                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                                     <StackPanel Orientation="Horizontal" Margin="2">
@@ -98,6 +104,27 @@
                                 </HierarchicalDataTemplate>
                             </TreeView.ItemTemplate>
                         </TreeView>
+
+                        <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Center" Background="LightGray" Margin="0,2"/>
+
+                        <!-- Node Detail Panel -->
+                        <Border Grid.Row="2" BorderBrush="LightGray" BorderThickness="1" CornerRadius="3"
+                                Background="#FAFAFA" MinHeight="60" MaxHeight="150" Padding="8,6">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel x:Name="RetentionDetailPanel">
+                                    <TextBlock x:Name="RetentionDetailPlaceholder"
+                                               Text="Select a node in the retention graph to see its details."
+                                               Foreground="Gray" FontStyle="Italic"/>
+                                    <TextBlock x:Name="RetentionDetailType" FontWeight="Bold" FontSize="12"
+                                               TextWrapping="Wrap" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="RetentionDetailInfo" Foreground="Gray" FontSize="11"
+                                               FontFamily="Consolas" Margin="0,2,0,0" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="RetentionDetailValue" Foreground="#1565C0" FontSize="12"
+                                               TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
                     </Grid>
                 </TabItem>
             </TabControl>

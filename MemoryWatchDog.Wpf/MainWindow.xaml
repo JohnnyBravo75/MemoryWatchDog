@@ -4,8 +4,12 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MemoryWatchDogApp"
+        xmlns:converters="clr-namespace:MemoryWatchDogApp.Converters"
         mc:Ignorable="d"
         Title=".NET MemoryWatchDog" Height="850" Width="1100" WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <converters:FormatBytesConverter x:Key="FormatBytesConverter"/>
+    </Window.Resources>
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -89,6 +93,10 @@
                       Content="Aggregate Objects" VerticalAlignment="Center"
                       IsChecked="False"
                       ToolTip="Aggregate heap objects by type name (faster and uses less memory. For a detailed view, uncheck this option)"/>
+            <CheckBox x:Name="CaptureDisplayValuesCheckBox" Grid.Row="1" Grid.Column="2" Margin="0,0,10,0"
+                      Content="Capture Display Values" VerticalAlignment="Center"
+                      IsChecked="True"
+                      ToolTip="Capture display values for each object (can be slower for large heaps)"/>
             <Button x:Name="AttachButton" Grid.Row="1" Grid.Column="3" Content="Get Memory Snapshot" Width="150" 
                     Click="AttachButton_Click" IsEnabled="False"/>
             <Button x:Name="ForceGCButton" Grid.Row="1" Grid.Column="4" Content="Force GC" Width="80"
@@ -233,18 +241,25 @@
                               MouseDoubleClick="PotentialLeaksGrid_MouseDoubleClick">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" Width="*"/>
-                            <DataGridTextColumn Header="Size (bytes)" Binding="{Binding Size}" Width="100">
+                            <DataGridTextColumn Header="Size" Binding="{Binding Size, Converter={StaticResource FormatBytesConverter}}" Width="100">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextAlignment" Value="Right"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Display Value" Binding="{Binding DisplayValue}" Width="200"/>
+                            <DataGridTextColumn Header="Display Value" Binding="{Binding DisplayValue}" Width="200">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#1565C0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="References" Binding="{Binding ReferenceCount}" Width="80">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextAlignment" Value="Right"/>
+                                        <Setter Property="Foreground" Value="Orange"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>

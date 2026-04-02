@@ -47,7 +47,6 @@
 
         public string NETVersion { get; internal set; }
 
-
         public void Clear()
         {
             this.Threads?.Clear();
@@ -56,16 +55,7 @@
             {
                 foreach (var type in this.Types)
                 {
-                    if (type.Value.Objects != null)
-                    {
-                        foreach (var obj in type.Value.Objects)
-                        {
-                            obj.Reference = null;
-                            obj.References?.Clear();
-                        }
-
-                        type.Value.Objects.Clear();
-                    }
+                    type.Value.Clear();
                 }
                 this.Types.Clear();
             }

@@ -40,6 +40,7 @@
             if (dialog.ShowDialog() == true && dialog.SelectedProcess != null)
             {
                 this.selectedProcess = dialog.SelectedProcess;
+                dialog.SelectedProcess = null;
                 this.SelectedProcessText.Text = $"{this.selectedProcess.ProcessName}  (PID {this.selectedProcess.Id})";
                 this.AttachButton.IsEnabled = true;
                 this.ForceGCButton.IsEnabled = true;
@@ -115,7 +116,8 @@
                     ExcludeNameSpaces = excludeSystemNs
                         ? MemoryStatsFilter.GetSystemNamespaces()
                         : new List<string>(),
-                    AggregateObjects = (this.AggregateObjectsCheckBox.IsChecked == true)
+                    AggregateObjects = (this.AggregateObjectsCheckBox.IsChecked == true),
+                    CaptureDisplayValues = (this.CaptureDisplayValuesCheckBox.IsChecked == true)
                 };
 
                 // Capture the stats
@@ -514,6 +516,7 @@
             {
                 int index = this.snapshots.IndexOf(item);
                 item.Stats?.Clear();
+                item.Stats = null;
                 this.snapshots.Remove(item);
 
                 if (this.snapshots.Count > 0)
@@ -530,9 +533,9 @@
 
         private class SnapshotItem
         {
-            public MemoryStats Stats { get; }
-            public string DisplayDate { get; }
-            public string DisplayProcess { get; }
+            public MemoryStats? Stats { get; set; }
+            public string DisplayDate { get; set; }
+            public string DisplayProcess { get; set; }
 
             public SnapshotItem(MemoryStats stats)
             {
@@ -544,7 +547,7 @@
 
         private class DisposedObjectItem
         {
-            public ObjectInfo ObjectInfo { get; }
+            public ObjectInfo? ObjectInfo { get; set; }
             public string TypeName { get; }
             public ulong Size { get; }
             public string DisplayValue { get; }
