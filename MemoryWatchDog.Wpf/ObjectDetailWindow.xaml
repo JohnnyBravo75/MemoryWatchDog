@@ -32,11 +32,14 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding ObjectInfo.TypeName}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding ReferenceCountText}" Foreground="#E65100" FontSize="11" Margin="8,0,0,0"/>
-                                <!--<TextBlock Grid.Column="2" Text="{Binding AddressText}" FontFamily="Consolas" FontSize="12" Margin="8,0,0,0"/>-->
-                                <TextBlock Grid.Column="3" Text="{Binding SizeText}" Foreground="Gray" FontSize="11" Margin="8,0,0,0"/>
+                                <TextBlock Grid.Column="1" Text="{Binding DisposedText}" Foreground="Red" FontWeight="Bold" FontSize="11" Margin="6,0,0,0"
+                                           Visibility="{Binding DisposedText, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding ReferenceCountText}" Foreground="Orange" FontSize="11" Margin="8,0,0,0"/>
+                                <!--<TextBlock Grid.Column="3" Text="{Binding AddressText}" FontFamily="Consolas" FontSize="12" Margin="8,0,0,0"/>-->
+                                <TextBlock Grid.Column="4" Text="{Binding SizeText}" Foreground="Gray" FontSize="11" Margin="8,0,0,0"/>
                             </Grid>
                             <TextBlock Text="{Binding DisplayValueText}" Foreground="#1565C0" FontSize="11"
                          TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
@@ -51,42 +54,53 @@
                   VerticalAlignment="Stretch" Background="LightGray" Margin="3,0"/>
 
         <!-- Right: Dependency & Retention graphs -->
-        <TabControl Grid.Column="2" Margin="5,0,0,0">
-            <TabItem Header="Dependency Graph">
-                <Grid>
-                    <TextBlock x:Name="NoSelectionText"
+        <DockPanel Grid.Column="2" Margin="5,0,0,0">
+            <CheckBox DockPanel.Dock="Top" x:Name="ExcludeSystemTypesCheckBox"
+                      Content="Exclude system types" Margin="0,0,0,6"
+                      IsChecked="False"
+                      Checked="ExcludeSystemTypesCheckBox_Changed"
+                      Unchecked="ExcludeSystemTypesCheckBox_Changed"
+                      ToolTip="Hide references to System, Microsoft, Windows and other framework types"/>
+            <TabControl>
+                <TabItem Header="Dependency Graph">
+                    <Grid>
+                        <TextBlock x:Name="NoSelectionText"
                          Text="Select an object from the list to view its dependencies."
                          Foreground="Gray" FontStyle="Italic" VerticalAlignment="Top" Margin="5"/>
-                    <ScrollViewer x:Name="GraphScrollViewer" Visibility="Collapsed"
+                        <ScrollViewer x:Name="GraphScrollViewer" Visibility="Collapsed"
                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                        <Canvas x:Name="GraphCanvas"/>
-                    </ScrollViewer>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Retention Graph">
-                <Grid>
-                    <TextBlock x:Name="RetentionNoSelectionText"
+                            <Canvas x:Name="GraphCanvas"/>
+                        </ScrollViewer>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="Retention Graph">
+                    <Grid>
+                        <TextBlock x:Name="RetentionNoSelectionText"
                          Text="Select an object from the list to view the retention graph."
                          Foreground="Gray" FontStyle="Italic" VerticalAlignment="Top" Margin="5"/>
-                    <TreeView x:Name="RetentionTreeView" Visibility="Collapsed"
+                        <TreeView x:Name="RetentionTreeView" Visibility="Collapsed"
                         VirtualizingStackPanel.IsVirtualizing="True"
                         VirtualizingStackPanel.VirtualizationMode="Recycling"
                         BorderThickness="0">
-                        <TreeView.ItemTemplate>
-                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Margin="2">
-                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="11"
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                    <StackPanel Orientation="Horizontal" Margin="2">
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="11"
                                          TextWrapping="NoWrap"/>
-                                    <TextBlock Text="{Binding DetailText}" Foreground="Gray" FontSize="10"
+                                        <TextBlock Text="{Binding DisposedText}" Foreground="Red" FontWeight="Bold" FontSize="10"
+                                         Margin="6,1,0,0"
+                                         Visibility="{Binding DisposedText, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                        <TextBlock Text="{Binding DetailText}" Foreground="Gray" FontSize="10"
                                          Margin="8,1,0,0" FontFamily="Consolas"/>
-                                    <TextBlock Text="{Binding ReferenceCountText}" Foreground="#E65100" FontSize="10"
+                                        <TextBlock Text="{Binding ReferenceCountText}" Foreground="Orange" FontSize="10"
                                          Margin="8,1,0,0"/>
-                                </StackPanel>
-                            </HierarchicalDataTemplate>
-                        </TreeView.ItemTemplate>
-                    </TreeView>
-                </Grid>
-            </TabItem>
-        </TabControl>
+                                    </StackPanel>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+        </DockPanel>
     </Grid>
 </Window>

@@ -185,6 +185,44 @@
                     </DataGrid.Columns>
                 </DataGrid>
             </TabItem>
+            <TabItem x:Name="PotentialLeaksTab">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Potential Leaks" Foreground="Red" FontWeight="Bold"/>
+                        <TextBlock x:Name="PotentialLeaksCountText" Foreground="Red" FontWeight="Bold" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Margin="5"
+                               Text="Objects that have been disposed but are still retained in memory. These are potential memory leaks."
+                               Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap"/>
+                    <DataGrid x:Name="PotentialLeaksGrid" AutoGenerateColumns="False"
+                              IsReadOnly="True" CanUserSortColumns="True"
+                              HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray"
+                              MouseDoubleClick="PotentialLeaksGrid_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" Width="*"/>
+                            <DataGridTextColumn Header="Size (bytes)" Binding="{Binding Size}" Width="100">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Display Value" Binding="{Binding DisplayValue}" Width="200"/>
+                            <DataGridTextColumn Header="References" Binding="{Binding ReferenceCount}" Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Element Type" Binding="{Binding ElementType}" Width="120"/>
+                            <DataGridTextColumn Header="Assembly" Binding="{Binding AssemblyName}" Width="200"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
         </TabControl>
 
         <!-- Status bar -->

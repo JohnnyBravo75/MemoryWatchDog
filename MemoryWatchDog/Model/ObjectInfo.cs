@@ -85,6 +85,8 @@
 
         public string DisplayValue { get; set; } = "";
 
+        public bool IsDisposed { get; set; }
+
         public List<ReferenceInfo> References { get; set; } = new List<ReferenceInfo>();
 
         public override string ToString()

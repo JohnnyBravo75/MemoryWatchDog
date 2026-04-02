@@ -75,7 +75,7 @@
 
             this.AttachButton.IsEnabled = false;
             this.SelectProcessButton.IsEnabled = false;
-            this.ExportTxtButton.IsEnabled = false;
+            //this.ExportTxtButton.IsEnabled = false;
             this.ExportJsonButton.IsEnabled = false;
             this.CancelButton.IsEnabled = true;
             this.StartProfilingButton.IsEnabled = false;
@@ -208,7 +208,7 @@
             if (stats != null)
             {
                 this.currentStats = stats;
-                this.ExportTxtButton.IsEnabled = true;
+                //this.ExportTxtButton.IsEnabled = true;
                 this.ExportJsonButton.IsEnabled = true;
 
                 this.StatsHeader.Text = $"Memory Statistics - {stats.ProcessName}  (PID {stats.ProcessId})";
@@ -224,6 +224,16 @@
 
                 this.ThreadsGrid.ItemsSource = stats.Threads;
 
+                // Potential Leaks: all disposed objects still in memory
+                var disposedObjects = stats.Types.Values
+                    .SelectMany(t => t.Objects)
+                    .Where(o => o.IsDisposed)
+                    .OrderByDescending(o => o.Size)
+                    .Select(o => new DisposedObjectItem(o))
+                    .ToList();
+                this.PotentialLeaksGrid.ItemsSource = disposedObjects;
+                this.PotentialLeaksCountText.Text = disposedObjects.Count > 0 ? $"({disposedObjects.Count})" : "";
+
                 this.StatusText.Text = $"Done — {stats.ObjectCount} types, {stats.Threads.Count} threads";
             }
             else
@@ -233,6 +243,8 @@
                 this.OverviewText.Text = "";
                 this.ObjectsGrid.ItemsSource = null;
                 this.ThreadsGrid.ItemsSource = null;
+                this.PotentialLeaksGrid.ItemsSource = null;
+                this.PotentialLeaksCountText.Text = "";
                 this.StatusText.Text = "";
             }
         }
@@ -424,10 +436,47 @@
             }
         }
 
+        private void PotentialLeaksGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (this.PotentialLeaksGrid.SelectedItem is not DisposedObjectItem item)
+            {
+                return;
+            }
+
+            var syntheticType = new TypeInfo { TypeName = item.ObjectInfo.TypeName };
+            syntheticType.AddObject(item.ObjectInfo);
+
+            var detailWindow = new ObjectDetailWindow(syntheticType, this.currentStats);
+            detailWindow.Owner = this;
+            detailWindow.Show();
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             this.StopProfiling();
             base.OnClosed(e);
+        }
+
+        private class DisposedObjectItem
+        {
+            public ObjectInfo ObjectInfo { get; }
+            public string TypeName { get; }
+            public ulong Size { get; }
+            public string DisplayValue { get; }
+            public int ReferenceCount { get; }
+            public string ElementType { get; }
+            public string AssemblyName { get; }
+
+            public DisposedObjectItem(ObjectInfo obj)
+            {
+                this.ObjectInfo = obj;
+                this.TypeName = obj.TypeName;
+                this.Size = obj.Size;
+                this.DisplayValue = obj.DisplayValue;
+                this.ReferenceCount = obj.References.Count;
+                this.ElementType = obj.ElementType;
+                this.AssemblyName = obj.AssemblyName;
+            }
         }
 
     }

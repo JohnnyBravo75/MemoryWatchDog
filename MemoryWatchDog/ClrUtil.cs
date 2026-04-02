@@ -247,6 +247,42 @@
             }
         }
 
+        private static readonly HashSet<string> DisposedFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "disposed", "_disposed", "_isDisposed", "disposedValue", "_disposedValue", "isDisposed"
+        };
+
+        public static bool IsObjectDisposed(ClrObject obj, ClrType type)
+        {
+            try
+            {
+                if (type == null || type.Fields == null)
+                {
+                    return false;
+                }
+
+                foreach (var field in type.Fields)
+                {
+                    if (field?.Name != null
+                        && DisposedFieldNames.Contains(field.Name)
+                        && field.ElementType == ClrElementType.Boolean)
+                    {
+                        bool value = field.Read<bool>(obj.Address, interior: false);
+                        if (value)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Field read can fail for corrupted or partially collected objects
+            }
+
+            return false;
+        }
+
         public static void ForceGC()
         {
             try
