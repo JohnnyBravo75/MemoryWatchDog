@@ -283,6 +283,7 @@
                                 continue;
                             }
 
+                            var isSystemObj = ClrReader.IsSystemType(type);
                             var objInfo = new ObjectInfo()
                             {
                                 Reference = obj,
@@ -291,19 +292,23 @@
                                 ElementType = type?.ElementType.ToString(),
                                 Address = obj.Address,
                                 AssemblyName = type?.Module?.AssemblyName ?? "Unknown Assembly",
-                                Fields = ClrReader.GetFields(obj, type),
-                                DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrReader.GetDisplayValue(obj, type) : "",
-                                IsDisposed = ClrReader.IsObjectDisposed(obj, type),
-                                IsStatic = staticRootAddresses.Contains(obj.Address),
-                                IsEventHandler = ClrReader.IsEventHandler(type)
+                                Fields = !isSystemObj ? ClrReader.GetFields(obj, type) : null,
+                                DisplayValue = memoryStatsFilter.CaptureDisplayValues && !isSystemObj ? ClrReader.GetDisplayValue(obj, type) : "",
+                                IsDisposed = !isSystemObj && ClrReader.IsObjectDisposed(obj, type),
+                                IsStatic = !isSystemObj && staticRootAddresses.Contains(obj.Address),
+                                IsEventHandler = !isSystemObj && ClrReader.IsEventHandler(type)
                             };
 
                             if (!memoryStatsFilter.AggregateObjects)
                             {
+                                // Build field name lookup: address → field name for this object's fields
+                                var fieldNames = !isSystemObj ? ClrReader.GetReferenceFieldNames(obj, type) : null;
+
                                 // Enumerate references from this object
                                 foreach (var refObj in obj.EnumerateReferences())
                                 {
-                                    objInfo.References.Add(new ObjectInfo
+                                    var isSystemRefObj = ClrReader.IsSystemType(refObj.Type);
+                                    var refObjInfo = new ObjectInfo
                                     {
                                         Reference = refObj,
                                         TypeName = refObj.Type?.Name ?? "Unknown",
@@ -312,11 +317,18 @@
                                         Address = refObj.Address,
                                         AssemblyName = refObj.Type?.Module?.AssemblyName ?? "Unknown Assembly",
                                         // Fields = ClrReader.GetFields(obj, refObj.Type), //  Can lead to problems and hang
-                                        DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrReader.GetDisplayValue(refObj, refObj.Type) : "",
+                                        DisplayValue = memoryStatsFilter.CaptureDisplayValues && !isSystemRefObj ? ClrReader.GetDisplayValue(refObj, refObj.Type) : "",
                                         IsDisposed = ClrReader.IsObjectDisposed(refObj, refObj.Type),
-                                        IsStatic = staticRootAddresses.Contains(refObj.Address),
-                                        IsEventHandler = ClrReader.IsEventHandler(refObj.Type)
-                                    });
+                                        IsStatic = !isSystemRefObj && staticRootAddresses.Contains(refObj.Address),
+                                        IsEventHandler = !isSystemRefObj && ClrReader.IsEventHandler(refObj.Type)
+                                    };
+
+                                    if (fieldNames != null && fieldNames.TryGetValue(refObj.Address, out var fieldName))
+                                    {
+                                        refObjInfo.FieldName = fieldName;
+                                    }
+
+                                    objInfo.References.Add(refObjInfo);
                                 }
                             }
 

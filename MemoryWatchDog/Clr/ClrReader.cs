@@ -116,6 +116,11 @@
 
         public static bool IsSystemType(ClrType type)
         {
+            if (type == null)
+            {
+                return false;
+            }
+
             var systemNamespaces = GetSystemNamespaces();
 
             foreach (var systemNamespace in systemNamespaces)
@@ -171,6 +176,51 @@
             return "";
         }
 
+        public static Dictionary<ulong, string> GetReferenceFieldNames(ClrObject obj, ClrType type)
+        {
+            var result = new Dictionary<ulong, string>();
+
+            if (type == null)
+            {
+                return result;
+            }
+
+            string typeName = type.Name;
+            if (typeName != null && IsCollectionType(typeName))
+            {
+                return result;
+            }
+
+            var fields = type.Fields;
+            if (fields == null)
+            {
+                return result;
+            }
+
+            foreach (var field in fields)
+            {
+                if (field?.Name == null || !field.IsObjectReference)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var refObj = field.ReadObject(obj.Address, interior: false);
+                    if (refObj.Address != 0 && !result.ContainsKey(refObj.Address))
+                    {
+                        result[refObj.Address] = GetReadableFieldName(field.Name);
+                    }
+                }
+                catch
+                {
+                    // Field read can fail for corrupted or partially collected objects
+                }
+            }
+
+            return result;
+        }
+
         public static Dictionary<string, object> GetFields(ClrObject obj, ClrType type, int maxFields = 20, bool onlyWithValues = true)
         {
             var result = new Dictionary<string, object>();
@@ -196,13 +246,13 @@
             // Iterate fields once instead of calling GetFieldByName per name (avoids hangs on complex generic types)
             // Order fields so that own/custom type fields come first and system type fields come last
 
-            var orderedFields = fields
-                .Where(f => f?.Name != null)
-                .OrderBy(f => f.ContainingType != null && IsSystemType(f.ContainingType) ? 1 : 0)
-                .ToList();
+            //var orderedFields = fields
+            //    .Where(f => f?.Name != null)
+            //    .OrderBy(f => f.ContainingType != null && IsSystemType(f.ContainingType) ? 1 : 0)
+            //    .ToList();
 
             int fieldCount = 0;
-            foreach (var field in orderedFields)
+            foreach (var field in fields)
             {
                 string fieldValue = TryReadFieldValue(obj, field);
 

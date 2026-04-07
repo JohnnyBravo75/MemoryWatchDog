@@ -97,6 +97,9 @@
                             <TreeView.ItemTemplate>
                                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                                     <StackPanel Orientation="Horizontal" Margin="2">
+                                        <TextBlock Text="{Binding FieldNameText}" Foreground="#388E3C" FontWeight="Bold" FontSize="10"
+                                         Margin="0,1,4,0"
+                                         Visibility="{Binding FieldNameText, Converter={StaticResource StringToVisibilityConverter}}"/>
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="11"
                                          TextWrapping="NoWrap"/>
                                         <TextBlock Text="{Binding StaticText}" Foreground="#7B1FA2" FontWeight="Bold" FontSize="10"

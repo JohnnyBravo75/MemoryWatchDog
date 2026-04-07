@@ -216,7 +216,8 @@ namespace MemoryWatchDogApp
                 var refNode = CreateNodeVisual(
                     refInfo.TypeName,
                     $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
-                    "#E65100", "#FFF3E0", nodeWidth, refInfo.IsDisposed);
+                    "#E65100", "#FFF3E0", nodeWidth, refInfo.IsDisposed,
+                    refInfo.FieldName);
 
                 // Make reference node clickable to drill down
                 if (this.memoryStats != null)
@@ -307,7 +308,9 @@ namespace MemoryWatchDogApp
                 this.RetentionDetailType.Visibility = Visibility.Visible;
                 this.RetentionDetailInfo.Visibility = Visibility.Visible;
 
-                this.RetentionDetailType.Text = node.DisplayName;
+                this.RetentionDetailType.Text = string.IsNullOrEmpty(node.FieldName)
+                    ? node.DisplayName
+                    : $"{node.FieldName} \u2192 {node.DisplayName}";
                 this.RetentionDetailInfo.Text = node.DetailText;
 
                 if (!string.IsNullOrEmpty(node.DisplayValue))
@@ -352,7 +355,7 @@ namespace MemoryWatchDogApp
             detailWindow.Show();
         }
 
-        private static Border CreateNodeVisual(string title, string detail, string borderColor, string bgColor, double width, bool isDisposed = false)
+        private static Border CreateNodeVisual(string title, string detail, string borderColor, string bgColor, double width, bool isDisposed = false, string fieldName = "")
         {
             var border = new Border
             {
@@ -373,6 +376,18 @@ namespace MemoryWatchDogApp
             };
 
             var stack = new StackPanel();
+
+            if (!string.IsNullOrEmpty(fieldName))
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = $"{fieldName} \u2192",
+                    Foreground = (Brush)new BrushConverter().ConvertFromString("#388E3C")!,
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 10
+                });
+            }
+
             var titlePanel = new StackPanel { Orientation = Orientation.Horizontal };
             titlePanel.Children.Add(new TextBlock
             {
@@ -444,6 +459,8 @@ namespace MemoryWatchDogApp
             public string DisplayName { get; }
             public string DetailText { get; }
             public string DisplayValue { get; }
+            public string FieldName { get; }
+            public string FieldNameText { get; }
             public string ReferenceCountText { get; }
             public bool IsDisposed { get; }
             public string DisposedText { get; }
@@ -451,11 +468,13 @@ namespace MemoryWatchDogApp
             public string EventHandlerText { get; }
             public ObservableCollection<RetentionNode> Children { get; } = new ObservableCollection<RetentionNode>();
 
-            private RetentionNode(string displayName, string detailText, string referenceCountText, bool isDisposed, string displayValue = "", bool isStatic = false, bool isEventHandler = false)
+            private RetentionNode(string displayName, string detailText, string referenceCountText, bool isDisposed, string displayValue = "", bool isStatic = false, bool isEventHandler = false, string fieldName = "")
             {
                 this.DisplayName = displayName;
                 this.DetailText = detailText;
                 this.DisplayValue = displayValue;
+                this.FieldName = fieldName ?? "";
+                this.FieldNameText = string.IsNullOrEmpty(this.FieldName) ? "" : $"{this.FieldName} →";
                 this.ReferenceCountText = referenceCountText;
                 this.IsDisposed = isDisposed;
                 this.DisposedText = isDisposed ? "(disposed)" : "";
@@ -464,12 +483,14 @@ namespace MemoryWatchDogApp
                 this.childrenLoaded = true;
             }
 
-            public RetentionNode(ObjectInfo obj, Dictionary<ulong, ObjectInfo> addressLookup, HashSet<ulong> ancestorAddresses, Func<string, bool> excludeFilter = null)
+            public RetentionNode(ObjectInfo obj, Dictionary<ulong, ObjectInfo> addressLookup, HashSet<ulong> ancestorAddresses, Func<string, bool> excludeFilter = null, string fieldName = "")
             {
                 this.DisplayName = obj.TypeName;
                 var addr = obj.Reference?.Address ?? 0;
                 this.DetailText = $"0x{addr:X} | {obj.Size} bytes";
                 this.DisplayValue = obj.DisplayValue ?? "";
+                this.FieldName = fieldName ?? "";
+                this.FieldNameText = string.IsNullOrEmpty(this.FieldName) ? "" : $"{this.FieldName} →";
                 this.references = obj.References;
                 this.addressLookup = addressLookup;
                 this.excludeFilter = excludeFilter;
@@ -537,11 +558,12 @@ namespace MemoryWatchDogApp
                             refInfo.IsDisposed,
                             cycleDisplayValue,
                             refInfo.IsStatic,
-                            refInfo.IsEventHandler));
+                            refInfo.IsEventHandler,
+                            refInfo.FieldName));
                     }
                     else if (this.addressLookup.TryGetValue(refInfo.Address, out var childObj))
                     {
-                        this.Children.Add(new RetentionNode(childObj, this.addressLookup, this.ancestorAddresses, this.excludeFilter));
+                        this.Children.Add(new RetentionNode(childObj, this.addressLookup, this.ancestorAddresses, this.excludeFilter, refInfo.FieldName));
                     }
                     else
                     {
@@ -563,7 +585,8 @@ namespace MemoryWatchDogApp
                             refInfo.IsDisposed,
                             leafDisplayValue,
                             refInfo.IsStatic,
-                            refInfo.IsEventHandler));
+                            refInfo.IsEventHandler,
+                            refInfo.FieldName));
                     }
                 }
             }
