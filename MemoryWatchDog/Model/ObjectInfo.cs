@@ -10,6 +10,8 @@
 
         public long Count { get; set; } = 1;
 
+        public ulong Address { get; set; }
+
         public ulong Size { get; set; } = 0;
 
         public string ElementType { get; set; } = "";
@@ -23,7 +25,13 @@
 
         public bool IsDisposed { get; set; }
 
+        public bool IsStatic { get; set; }
+
+        public bool IsEventHandler { get; set; }
+
         public List<ReferenceInfo> References { get; set; } = new List<ReferenceInfo>();
+
+        public Dictionary<string, object> Fields { get; set; } = new Dictionary<string, object>();
 
         public void Clear()
         {

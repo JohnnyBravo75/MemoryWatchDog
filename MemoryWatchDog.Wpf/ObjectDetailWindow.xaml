@@ -33,13 +33,19 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding ObjectInfo.TypeName}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding DisposedText}" Foreground="Red" FontWeight="Bold" FontSize="11" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="1" Text="{Binding StaticText}" Foreground="#7B1FA2" FontWeight="Bold" FontSize="10" Margin="6,1,0,0"
+                                           Visibility="{Binding StaticText, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding EventHandlerText}" Foreground="#00838F" FontWeight="Bold" FontSize="10" Margin="6,1,0,0"
+                                           Visibility="{Binding EventHandlerText, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                <TextBlock Grid.Column="3" Text="{Binding DisposedText}" Foreground="Red" FontWeight="Bold" FontSize="11" Margin="6,0,0,0"
                                            Visibility="{Binding DisposedText, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                <TextBlock Grid.Column="2" Text="{Binding ReferenceCountText}" Foreground="Orange" FontSize="11" Margin="8,0,0,0"/>
-                                <!--<TextBlock Grid.Column="3" Text="{Binding AddressText}" FontFamily="Consolas" FontSize="12" Margin="8,0,0,0"/>-->
-                                <TextBlock Grid.Column="4" Text="{Binding SizeText}" Foreground="Gray" FontSize="11" Margin="8,0,0,0"/>
+                                <TextBlock Grid.Column="4" Text="{Binding ReferenceCountText}" Foreground="Orange" FontSize="11" Margin="8,0,0,0"/>
+                                <!--<TextBlock Grid.Column="5" Text="{Binding AddressText}" FontFamily="Consolas" FontSize="12" Margin="8,0,0,0"/>-->
+                                <TextBlock Grid.Column="6" Text="{Binding SizeText}" Foreground="Gray" FontSize="11" Margin="8,0,0,0"/>
                             </Grid>
                             <TextBlock Text="{Binding DisplayValueText}" Foreground="#1565C0" FontSize="11"
                          TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
@@ -93,6 +99,12 @@
                                     <StackPanel Orientation="Horizontal" Margin="2">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="11"
                                          TextWrapping="NoWrap"/>
+                                        <TextBlock Text="{Binding StaticText}" Foreground="#7B1FA2" FontWeight="Bold" FontSize="10"
+                                         Margin="6,1,0,0"
+                                         Visibility="{Binding StaticText, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                        <TextBlock Text="{Binding EventHandlerText}" Foreground="#00838F" FontWeight="Bold" FontSize="10"
+                                         Margin="6,1,0,0"
+                                         Visibility="{Binding EventHandlerText, Converter={StaticResource StringToVisibilityConverter}}"/>
                                         <TextBlock Text="{Binding DisposedText}" Foreground="Red" FontWeight="Bold" FontSize="10"
                                          Margin="6,1,0,0"
                                          Visibility="{Binding DisposedText, Converter={StaticResource StringToVisibilityConverter}}"/>

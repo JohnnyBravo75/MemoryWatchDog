@@ -12,6 +12,10 @@ namespace MemoryWatchDog
 
         public bool IsDisposed { get; set; }
 
+        public bool IsStatic { get; set; }
+
+        public bool IsEventHandler { get; set; }
+
         public string DisplayValue { get; set; } = "";
 
         public override string ToString()

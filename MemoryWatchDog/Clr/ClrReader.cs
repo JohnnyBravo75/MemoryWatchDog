@@ -6,12 +6,13 @@
     using System.Linq;
     using System.Runtime;
     using System.Text;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Diagnostics.NETCore.Client;
     using Microsoft.Diagnostics.Runtime;
 
-    public class ClrUtil
+    public class ClrReader
     {
         public static ClrRuntime AttachToClr(int? processId = null)
         {
@@ -108,6 +109,25 @@
             ClrElementType.Float, ClrElementType.Double
         };
 
+        public static List<string> GetSystemNamespaces()
+        {
+            return new List<string>() { "<>", "System", "Microsoft", "Windows", "mscorlib", "MS.", "Global", "Global Namespace", "<CppImplementationDetails>", "<CrtImplementationDetails>", "Internal." };
+        }
+
+        public static bool IsSystemType(ClrType type)
+        {
+            var systemNamespaces = GetSystemNamespaces();
+
+            foreach (var systemNamespace in systemNamespaces)
+            {
+                if (type.Name.StartsWith(systemNamespace))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public static string GetDisplayValue(ClrObject obj, ClrType type)
         {
             try
@@ -122,41 +142,21 @@
                     return "";
                 }
 
-                // Skip types where identity fields are meaningless or GetFieldByName may hang
+                // Skip types where GetFieldByName may hang
                 string typeName = type.Name;
                 if (typeName != null && IsCollectionType(typeName))
                 {
                     return "";
                 }
 
-                // Iterate fields once instead of calling GetFieldByName per name (avoids hangs on complex generic types)
-                var fields = type.Fields;
-                if (fields == null)
-                {
-                    return "";
-                }
-
-                var displayValue = "";
-                int fieldCount = 0;
+                string displayValue = "";
+                var fields = GetFields(obj, type, maxFields: 50);
                 foreach (var field in fields)
                 {
-                    if (field?.Name == null)
-                    {
-                        continue;
-                    }
-
-                    string fieldValue = TryReadFieldValue(obj, field);
-                    if (!string.IsNullOrEmpty(fieldValue))
-                    {
-                        displayValue += $"{field.Name} = {fieldValue};  ";
-                    }
-
-                    fieldCount++;
-                    if (IdentityFieldNames.Contains(field.Name) || fieldCount >= 7)
-                    {
-                        return displayValue;
-                    }
+                    displayValue += $"{field.Key} = {field.Value ?? "null"};  ";
                 }
+
+                return displayValue.Trim();
             }
             catch
             {
@@ -164,6 +164,66 @@
             }
 
             return "";
+        }
+
+        public static Dictionary<string, object> GetFields(ClrObject obj, ClrType type, int maxFields = 20, bool onlyWithValues = true)
+        {
+            var result = new Dictionary<string, object>();
+
+            // Skip collection types there may be problems (hang) or not informative infos
+            string typeName = type.Name;
+            if (typeName != null && IsCollectionType(typeName))
+            {
+                return result;
+            }
+
+            var fields = type.Fields;
+            if (fields == null)
+            {
+                return result;
+            }
+
+            // Iterate fields once instead of calling GetFieldByName per name (avoids hangs on complex generic types)
+            // Order fields so that own/custom type fields come first and system type fields come last
+
+            var orderedFields = fields
+                .Where(f => f?.Name != null)
+                .OrderBy(f => f.ContainingType != null && IsSystemType(f.ContainingType) ? 1 : 0)
+                .ToList();
+
+            int fieldCount = 0;
+            foreach (var field in orderedFields)
+            {
+                string fieldValue = TryReadFieldValue(obj, field);
+
+                if ((onlyWithValues && !string.IsNullOrEmpty(fieldValue))
+                   || !onlyWithValues)
+                {
+                    var readableFieldName = GetReadableFieldName(field.Name);
+                    result.Add(readableFieldName, fieldValue);
+                }
+
+                fieldCount++;
+                if (fieldCount >= maxFields)
+                {
+                    return result;
+                }
+            }
+
+            return result;
+        }
+
+        private static string GetReadableFieldName(string fieldName)
+        {
+            string pattern = @"<([^>]+)>k__BackingField";
+
+            Match match = Regex.Match(fieldName, pattern);
+            if (match.Success && match.Groups.Count > 1)
+            {
+                return match.Groups[1]?.Value ?? fieldName;
+            }
+
+            return fieldName;
         }
 
         private static string TryReadFieldValue(ClrObject obj, ClrInstanceField field)
@@ -291,69 +351,114 @@
             return false;
         }
 
-        public static void ForceGC()
+        public static bool IsEventHandler(ClrType type)
         {
             try
             {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-
-                // This is for compression the LOH (Large Object Heap) - this is not done by defualt and could fragment your memory and and memory could grow
-                // https://web.archive.org/web/20201027035717/https://www.wintellect.com/hey-who-stole-all-my-memory/
-                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                GC.Collect();
+                var baseType = type?.BaseType;
+                while (baseType != null)
+                {
+                    if (baseType.Name == "System.MulticastDelegate" || baseType.Name == "System.Delegate")
+                    {
+                        return true;
+                    }
+                    baseType = baseType.BaseType;
+                }
             }
             catch
             {
-                // ignore
+                // Type hierarchy walk can fail
             }
+
+            return false;
         }
 
-        public static void ForceRemoteGC(int processId)
+        public static HashSet<ulong> BuildStaticRootAddresses(ClrRuntime runtime, bool includeSystemTypes = false)
         {
-            var client = new DiagnosticsClient(processId);
-            var providers = new List<EventPipeProvider>
-            {
-                new EventPipeProvider(
-                    "Microsoft-Windows-DotNETRuntime",
-                    System.Diagnostics.Tracing.EventLevel.Informational,
-                    (long)0x800000) // GCHeapCollect keyword - induces a GC on the target process
-            };
+            var staticAddresses = new HashSet<ulong>();
+            var processedTypes = new HashSet<ulong>();
 
-            EventPipeSession session = null;
             try
             {
-                session = client.StartEventPipeSession(providers, requestRundown: false);
-
-                // Drain the event stream on a background thread to prevent Stop() from deadlocking.
-                // Without this, the pipe buffer fills up and Stop() blocks forever waiting for the
-                // runtime to acknowledge the stop command.
-                var drainTask = Task.Run(() =>
+                foreach (var obj in runtime.Heap.EnumerateObjects())
                 {
+                    var type = obj.Type;
+                    if (type == null || !processedTypes.Add(type.MethodTable))
+                    {
+                        continue;
+                    }
+
                     try
                     {
-                        var buffer = new byte[4096];
-                        while (session.EventStream.Read(buffer, 0, buffer.Length) > 0)
+                        if (!includeSystemTypes && IsSystemType(type))
                         {
+                            continue;
+                        }
+
+                        // type.StaticFields can hang indefinitely on certain types
+                        // (e.g. MemoryRange) due to ClrMD metadata resolution.
+                        // Use a CancellationTokenSource with timeout to abort the wait.
+                        using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200)))
+                        {
+                            var token = cts.Token;
+                            var fieldTask = Task.Run(() => type.StaticFields, token);
+
+                            try
+                            {
+                                fieldTask.Wait(token);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                continue;
+                            }
+
+                            if (!fieldTask.IsCompleted || fieldTask.IsFaulted)
+                            {
+                                continue;
+                            }
+
+                            var staticFields = fieldTask.Result;
+
+                            foreach (var staticField in staticFields)
+                            {
+                                if (!staticField.IsObjectReference)
+                                {
+                                    continue;
+                                }
+
+                                foreach (var domain in runtime.AppDomains)
+                                {
+                                    try
+                                    {
+                                        var staticObj = staticField.ReadObject(domain);
+                                        if (staticObj.Address != 0)
+                                        {
+                                            staticAddresses.Add(staticObj.Address);
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        // Reading static field can fail
+                                    }
+                                }
+                            }
                         }
                     }
                     catch
                     {
-                        // Stream will throw when session is stopped, which is expected
+                        // Static field enumeration can fail for some types
                     }
-                });
-
-                // Give the runtime time to execute the induced GC
-                Thread.Sleep(1000);
-
-                session.Stop();
-                drainTask.Wait(TimeSpan.FromSeconds(5));
+                }
             }
-            finally
+            catch
             {
-                session?.Dispose();
+                // Heap walk can fail under contention
             }
+
+            return staticAddresses;
         }
+
+
 
         public static LiveMemorySnapshot CaptureLiveSnapshot(int processId)
         {
@@ -369,7 +474,7 @@
             ClrRuntime runtime = null;
             try
             {
-                runtime = ClrUtil.AttachToClr(processId);
+                runtime = ClrReader.AttachToClr(processId);
                 foreach (var segment in runtime.Heap.Segments)
                 {
                     long size = (long)segment.Length;
@@ -403,7 +508,7 @@
             }
             finally
             {
-                ClrUtil.DetachFromClr(runtime);
+                ClrReader.DetachFromClr(runtime);
             }
 
             return snapshot;

@@ -116,7 +116,7 @@
 
         public string GetNETVersion(int processId)
         {
-            return ClrUtil.GetNETVersion(processId);
+            return ClrReader.GetNETVersion(processId);
         }
 
 
@@ -128,12 +128,17 @@
                 memoryStatsFilter = new MemoryStatsFilter();
             }
 
+            if (processId == null)
+            {
+                processId = Process.GetCurrentProcess().Id;
+            }
+
             var memoryStats = new MemoryStats();
 
             ClrRuntime runtime = null;
             try
             {
-                runtime = ClrUtil.AttachToClr(processId);
+                runtime = ClrReader.AttachToClr(processId);
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -173,7 +178,7 @@
             }
             finally
             {
-                ClrUtil.DetachFromClr(runtime);
+                ClrReader.DetachFromClr(runtime);
             }
         }
 
@@ -191,7 +196,7 @@
         private void ReadThreads(ClrRuntime runtime, MemoryStats memoryStats, CancellationToken cancellationToken)
         {
             // Resolve thread names from the heap by finding System.Threading.Thread objects
-            var threadNames = ClrUtil.ResolveThreadNames(runtime);
+            var threadNames = ClrReader.ResolveThreadNames(runtime);
 
             foreach (var thread in runtime.Threads.Where(x => x.IsAlive))
             {
@@ -241,6 +246,8 @@
             {
                 int objectsProcessed = 0;
 
+                var staticRootAddresses = ClrReader.BuildStaticRootAddresses(runtime);
+
                 foreach (var obj in runtime.Heap.EnumerateObjects())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -279,12 +286,16 @@
                             var objInfo = new ObjectInfo()
                             {
                                 Reference = obj,
-                                TypeName = typeName,
+                                TypeName = type?.Name,
                                 Size = obj.Size,
-                                ElementType = type.ElementType.ToString(),
-                                AssemblyName = assemblyName,
-                                DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrUtil.GetDisplayValue(obj, type) : "",
-                                IsDisposed = ClrUtil.IsObjectDisposed(obj, type)
+                                ElementType = type?.ElementType.ToString(),
+                                Address = obj.Address,
+                                AssemblyName = type?.Module?.AssemblyName ?? "Unknown Assembly",
+                                Fields = ClrReader.GetFields(obj, type),
+                                DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrReader.GetDisplayValue(obj, type) : "",
+                                IsDisposed = ClrReader.IsObjectDisposed(obj, type),
+                                IsStatic = staticRootAddresses.Contains(obj.Address),
+                                IsEventHandler = ClrReader.IsEventHandler(type)
                             };
 
                             if (!memoryStatsFilter.AggregateObjects)
@@ -297,8 +308,10 @@
                                         TypeName = reference.Type?.Name ?? "Unknown",
                                         Address = reference.Address,
                                         Size = reference.Size,
-                                        IsDisposed = reference.Type != null ? ClrUtil.IsObjectDisposed(reference, reference.Type) : false,
-                                        DisplayValue = memoryStatsFilter.CaptureDisplayValues && reference.Type != null ? ClrUtil.GetDisplayValue(reference, reference.Type) : ""
+                                        IsDisposed = reference.Type != null ? ClrReader.IsObjectDisposed(reference, reference.Type) : false,
+                                        DisplayValue = memoryStatsFilter.CaptureDisplayValues && reference.Type != null ? ClrReader.GetDisplayValue(reference, reference.Type) : "",
+                                        IsStatic = staticRootAddresses.Contains(reference.Address),
+                                        IsEventHandler = reference.Type != null ? ClrReader.IsEventHandler(reference.Type) : false
                                     });
                                 }
                             }

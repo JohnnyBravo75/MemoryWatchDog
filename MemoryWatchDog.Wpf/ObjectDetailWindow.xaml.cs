@@ -20,7 +20,7 @@ namespace MemoryWatchDogApp
         private MemoryStats? memoryStats;
         private Dictionary<ulong, ObjectInfo>? addressLookup;
         private List<ObjectDisplayItem>? allDisplayItems;
-        private List<string>? systemNamespaces = MemoryStatsFilter.GetSystemNamespaces();
+        private List<string>? systemNamespaces = ClrReader.GetSystemNamespaces();
         private ObjectInfo? currentSelectedObject;
 
         public ObjectDetailWindow(TypeInfo typeInfo, MemoryStats memoryStats = null)
@@ -414,6 +414,8 @@ namespace MemoryWatchDogApp
             public string ReferenceCountText { get; }
             public bool IsDisposed { get; }
             public string DisposedText { get; }
+            public string StaticText { get; }
+            public string EventHandlerText { get; }
 
             public ObjectDisplayItem(ObjectInfo obj)
             {
@@ -424,6 +426,8 @@ namespace MemoryWatchDogApp
                 this.ReferenceCountText = $"{obj.References.Count} refs";
                 this.IsDisposed = obj.IsDisposed;
                 this.DisposedText = obj.IsDisposed ? "(disposed)" : "";
+                this.StaticText = obj.IsStatic ? "● static" : "";
+                this.EventHandlerText = obj.IsEventHandler ? "● event" : "";
             }
         }
 
@@ -443,9 +447,11 @@ namespace MemoryWatchDogApp
             public string ReferenceCountText { get; }
             public bool IsDisposed { get; }
             public string DisposedText { get; }
+            public string StaticText { get; }
+            public string EventHandlerText { get; }
             public ObservableCollection<RetentionNode> Children { get; } = new ObservableCollection<RetentionNode>();
 
-            private RetentionNode(string displayName, string detailText, string referenceCountText, bool isDisposed, string displayValue = "")
+            private RetentionNode(string displayName, string detailText, string referenceCountText, bool isDisposed, string displayValue = "", bool isStatic = false, bool isEventHandler = false)
             {
                 this.DisplayName = displayName;
                 this.DetailText = detailText;
@@ -453,6 +459,8 @@ namespace MemoryWatchDogApp
                 this.ReferenceCountText = referenceCountText;
                 this.IsDisposed = isDisposed;
                 this.DisposedText = isDisposed ? "(disposed)" : "";
+                this.StaticText = isStatic ? "● static" : "";
+                this.EventHandlerText = isEventHandler ? "● event" : "";
                 this.childrenLoaded = true;
             }
 
@@ -468,6 +476,8 @@ namespace MemoryWatchDogApp
                 this.ReferenceCountText = obj.References.Count > 0 ? $"({obj.References.Count} refs)" : "";
                 this.IsDisposed = obj.IsDisposed;
                 this.DisposedText = obj.IsDisposed ? "(disposed)" : "";
+                this.StaticText = obj.IsStatic ? "● static" : "";
+                this.EventHandlerText = obj.IsEventHandler ? "● event" : "";
 
                 this.ancestorAddresses = new HashSet<ulong>(ancestorAddresses);
                 if (addr != 0)
@@ -525,7 +535,9 @@ namespace MemoryWatchDogApp
                             $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
                             "(cycle)",
                             refInfo.IsDisposed,
-                            cycleDisplayValue));
+                            cycleDisplayValue,
+                            refInfo.IsStatic,
+                            refInfo.IsEventHandler));
                     }
                     else if (this.addressLookup.TryGetValue(refInfo.Address, out var childObj))
                     {
@@ -549,7 +561,9 @@ namespace MemoryWatchDogApp
                             $"0x{refInfo.Address:X} | {refInfo.Size} bytes",
                             "",
                             refInfo.IsDisposed,
-                            leafDisplayValue));
+                            leafDisplayValue,
+                            refInfo.IsStatic,
+                            refInfo.IsEventHandler));
                     }
                 }
             }

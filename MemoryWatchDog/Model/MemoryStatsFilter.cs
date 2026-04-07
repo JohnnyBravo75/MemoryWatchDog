@@ -14,12 +14,7 @@
 
         public MemoryStatsFilter()
         {
-            this.ExcludeNameSpaces = GetSystemNamespaces();
-        }
-
-        public static List<string> GetSystemNamespaces()
-        {
-            return new List<string>() { "<>", "System", "Microsoft", "Windows", "mscorlib", "MS.", "Global", "Global Namespace", "<CppImplementationDetails>", "<CrtImplementationDetails>", "Internal." };
+            this.ExcludeNameSpaces = ClrReader.GetSystemNamespaces();
         }
 
         public List<string> ExcludeNameSpaces

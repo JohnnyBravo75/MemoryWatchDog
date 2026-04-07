@@ -114,7 +114,7 @@
                 var filter = new MemoryStatsFilter
                 {
                     ExcludeNameSpaces = excludeSystemNs
-                        ? MemoryStatsFilter.GetSystemNamespaces()
+                        ? ClrReader.GetSystemNamespaces()
                         : new List<string>(),
                     AggregateObjects = (this.AggregateObjectsCheckBox.IsChecked == true),
                     CaptureDisplayValues = (this.CaptureDisplayValuesCheckBox.IsChecked == true)
@@ -391,7 +391,7 @@
 
             try
             {
-                var snapshot = await Task.Run(() => ClrUtil.CaptureLiveSnapshot(processId));
+                var snapshot = await Task.Run(() => ClrReader.CaptureLiveSnapshot(processId));
                 if (this.isProfiling)
                 {
                     this.MemoryGraph.AddSnapshot(snapshot);
@@ -554,6 +554,10 @@
             public int ReferenceCount { get; }
             public string ElementType { get; }
             public string AssemblyName { get; }
+            public bool IsStatic { get; }
+            public bool IsEventHandler { get; }
+            public string StaticText { get; }
+            public string EventHandlerText { get; }
 
             public DisposedObjectItem(ObjectInfo obj)
             {
@@ -564,6 +568,10 @@
                 this.ReferenceCount = obj.References.Count;
                 this.ElementType = obj.ElementType;
                 this.AssemblyName = obj.AssemblyName;
+                this.IsStatic = obj.IsStatic;
+                this.IsEventHandler = obj.IsEventHandler;
+                this.StaticText = obj.IsStatic ? "● static" : "";
+                this.EventHandlerText = obj.IsEventHandler ? "● event" : "";
             }
         }
 
