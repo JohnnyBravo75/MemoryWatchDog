@@ -329,7 +329,7 @@ namespace MemoryWatchDogApp
             }
         }
 
-        private void OpenReferenceDetail(ReferenceInfo refInfo)
+        private void OpenReferenceDetail(ObjectInfo refInfo)
         {
             ObjectInfo matchedObject = null;
             this.addressLookup?.TryGetValue(refInfo.Address, out matchedObject);
@@ -435,7 +435,7 @@ namespace MemoryWatchDogApp
         {
             private static readonly RetentionNode Placeholder = new RetentionNode("", "", "", false);
 
-            private readonly List<ReferenceInfo> references;
+            private readonly List<ObjectInfo> references;
             private readonly Dictionary<ulong, ObjectInfo> addressLookup;
             private readonly HashSet<ulong> ancestorAddresses;
             private readonly Func<string, bool> excludeFilter;

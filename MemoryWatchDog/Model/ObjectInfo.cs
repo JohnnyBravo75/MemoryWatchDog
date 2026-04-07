@@ -29,7 +29,7 @@
 
         public bool IsEventHandler { get; set; }
 
-        public List<ReferenceInfo> References { get; set; } = new List<ReferenceInfo>();
+        public List<ObjectInfo> References { get; set; } = new List<ObjectInfo>();
 
         public Dictionary<string, object> Fields { get; set; } = new Dictionary<string, object>();
 

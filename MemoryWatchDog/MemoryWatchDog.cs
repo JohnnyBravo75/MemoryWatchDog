@@ -301,17 +301,21 @@
                             if (!memoryStatsFilter.AggregateObjects)
                             {
                                 // Enumerate references from this object
-                                foreach (var reference in obj.EnumerateReferences())
+                                foreach (var refObj in obj.EnumerateReferences())
                                 {
-                                    objInfo.References.Add(new ReferenceInfo
+                                    objInfo.References.Add(new ObjectInfo
                                     {
-                                        TypeName = reference.Type?.Name ?? "Unknown",
-                                        Address = reference.Address,
-                                        Size = reference.Size,
-                                        IsDisposed = reference.Type != null ? ClrReader.IsObjectDisposed(reference, reference.Type) : false,
-                                        DisplayValue = memoryStatsFilter.CaptureDisplayValues && reference.Type != null ? ClrReader.GetDisplayValue(reference, reference.Type) : "",
-                                        IsStatic = staticRootAddresses.Contains(reference.Address),
-                                        IsEventHandler = reference.Type != null ? ClrReader.IsEventHandler(reference.Type) : false
+                                        Reference = refObj,
+                                        TypeName = refObj.Type?.Name ?? "Unknown",
+                                        Size = refObj.Size,
+                                        ElementType = refObj.Type?.ElementType.ToString(),
+                                        Address = refObj.Address,
+                                        AssemblyName = refObj.Type?.Module?.AssemblyName ?? "Unknown Assembly",
+                                        // Fields = ClrReader.GetFields(obj, refObj.Type), //  Can lead to problems and hang
+                                        DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrReader.GetDisplayValue(refObj, refObj.Type) : "",
+                                        IsDisposed = ClrReader.IsObjectDisposed(refObj, refObj.Type),
+                                        IsStatic = staticRootAddresses.Contains(refObj.Address),
+                                        IsEventHandler = ClrReader.IsEventHandler(refObj.Type)
                                     });
                                 }
                             }

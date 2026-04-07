@@ -130,6 +130,11 @@
 
         public static string GetDisplayValue(ClrObject obj, ClrType type)
         {
+            if (type == null)
+            {
+                return "";
+            }
+
             try
             {
                 if (type.IsString)
@@ -150,7 +155,7 @@
                 }
 
                 string displayValue = "";
-                var fields = GetFields(obj, type, maxFields: 50);
+                var fields = GetFields(obj, type, maxFields: 20);
                 foreach (var field in fields)
                 {
                     displayValue += $"{field.Key} = {field.Value ?? "null"};  ";
@@ -169,6 +174,11 @@
         public static Dictionary<string, object> GetFields(ClrObject obj, ClrType type, int maxFields = 20, bool onlyWithValues = true)
         {
             var result = new Dictionary<string, object>();
+
+            if (type == null)
+            {
+                return result;
+            }
 
             // Skip collection types there may be problems (hang) or not informative infos
             string typeName = type.Name;
@@ -353,6 +363,11 @@
 
         public static bool IsEventHandler(ClrType type)
         {
+            if (type == null)
+            {
+                return false;
+            }
+
             try
             {
                 var baseType = type?.BaseType;
