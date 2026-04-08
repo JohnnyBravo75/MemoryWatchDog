@@ -31,5 +31,33 @@ namespace MemoryWatchDog
         /// Number of intervals to wait after taking a targeted snapshot before re-analyzing.
         /// </summary>
         public int CooldownIntervalsAfterCapture { get; set; } = 3;
+
+        /// <summary>
+        /// Force GC on the target process before taking each snapshot to reduce false positives (#3).
+        /// </summary>
+        public bool ForceGCBeforeSnapshot { get; set; } = true;
+
+        /// <summary>
+        /// Minimum R² from linear regression to accept a trend as a leak signal (#1).
+        /// </summary>
+        public double MinTrendRSquared { get; set; } = 0.4;
+
+        /// <summary>
+        /// Number of stable (non-growing) intervals before a candidate is demoted (#8).
+        /// </summary>
+        public int DemotionStableIntervals { get; set; } = 3;
+
+        /// <summary>
+        /// Minimum absolute object count growth (current minus baseline minimum) to flag a type.
+        /// Types that only grew by a handful of objects are noise, not leaks.
+        /// </summary>
+        public int MinAbsoluteGrowth { get; set; } = 10;
+
+        /// <summary>
+        /// If the current count is within this percentage of the baseline minimum,
+        /// the type has recovered and should not be flagged.
+        /// 0.1 = 10% tolerance above baseline.
+        /// </summary>
+        public double RecoveryTolerancePercent { get; set; } = 0.1;
     }
 }

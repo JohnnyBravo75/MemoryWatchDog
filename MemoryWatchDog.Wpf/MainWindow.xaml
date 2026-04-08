@@ -108,6 +108,8 @@
                         <TextBlock Text="Min Growth:" VerticalAlignment="Center" Margin="15,0,5,0"/>
                         <TextBox x:Name="AutoMinGrowthTextBox" Width="50" Text="5" VerticalAlignment="Center"
                                  ToolTip="Minimum consecutive growths to flag a type as leak candidate"/>
+                        <CheckBox x:Name="AutoForceGCCheckBox" Margin="15,0,0,0" Content="Force GC" VerticalAlignment="Center"
+                                  IsChecked="True" ToolTip="Force garbage collection on the target before each snapshot to reduce false positives"/>
                     </StackPanel>
 
                     <!-- Controls Row -->
@@ -135,6 +137,11 @@
                                    Foreground="#C62828" DockPanel.Dock="Left" VerticalAlignment="Center"/>
                         <TextBlock x:Name="LeakCandidateCountText" Foreground="#C62828" FontWeight="Bold"
                                    Margin="6,0,0,0" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                        <Button x:Name="ExportReportButton" Content="📋 Export Report"
+                                Width="100" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                Click="ExportReportButton_Click" IsEnabled="False"
+                                Margin="5,0,0,0"
+                                ToolTip="Export a structured leak detection report"/>
                         <Button x:Name="TakeLeakSnapshotButton" Content="📸 Detailed Snapshot of Suspects"
                                 Width="220" DockPanel.Dock="Right" HorizontalAlignment="Right"
                                 Click="TakeLeakSnapshotButton_Click" IsEnabled="False"
@@ -146,23 +153,16 @@
                               IsReadOnly="True" CanUserSortColumns="True" MaxHeight="180"
                               HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Confidence" Binding="{Binding ConfidenceText}" Width="100"/>
+                            <DataGridTextColumn Header="Confidence" Binding="{Binding ConfidenceText}" Width="95"/>
+                            <DataGridTextColumn Header="Pattern" Binding="{Binding PatternText}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#6A1B9A"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" Width="*"/>
-                            <DataGridTextColumn Header="Initial Count" Binding="{Binding InitialCount}" Width="90">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="TextAlignment" Value="Right"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Current Count" Binding="{Binding CurrentCount}" Width="100">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="TextAlignment" Value="Right"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Growth" Binding="{Binding CountGrowth}" Width="80">
+                            <DataGridTextColumn Header="Growth" Binding="{Binding CountGrowth}" Width="70">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextAlignment" Value="Right"/>
@@ -171,17 +171,31 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Growth/Interval" Binding="{Binding GrowthRatePerInterval, StringFormat='+{0:0.0}'}" Width="100">
+                            <DataGridTextColumn Header="+/Interval" Binding="{Binding GrowthRatePerInterval, StringFormat='+{0:0.0}'}" Width="75">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextAlignment" Value="Right"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Consecutive" Binding="{Binding ConsecutiveGrowthCount}" Width="90">
+                            <DataGridTextColumn Header="Trend" Binding="{Binding TrendText}" Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#1565C0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Avg Size Δ" Binding="{Binding AverageSizeGrowth, StringFormat='{}{0:+0;-0;0}'}" Width="80">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Est. OOM" Binding="{Binding EstimatedTimeToOOMText}" Width="85">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#B71C1C"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>

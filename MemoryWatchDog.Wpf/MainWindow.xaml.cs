@@ -396,6 +396,8 @@
                 settings.MinConsecutiveGrowthCount = minGrowth;
             }
 
+            settings.ForceGCBeforeSnapshot = this.AutoForceGCCheckBox.IsChecked == true;
+
             return settings;
         }
 
@@ -423,10 +425,12 @@
             this.cooldownRemaining = 0;
             this.autoSnapshots.Clear();
             this.currentLeakCandidates.Clear();
+            this.leakDetector.Reset();
             this.MemoryGraph.Clear();
             this.LeakCandidatesGrid.ItemsSource = null;
             this.LeakCandidateCountText.Text = "";
             this.TakeLeakSnapshotButton.IsEnabled = false;
+            this.ExportReportButton.IsEnabled = false;
 
             this.StartAutoWatchButton.IsEnabled = false;
             this.StopAutoWatchButton.IsEnabled = true;
@@ -465,8 +469,21 @@
 
             try
             {
-                // Take a lightweight aggregated snapshot (objects counted by type, no threads)
+                // Force GC before snapshot to reduce false positives (#3)
                 using var watchDog = new MemoryWatchDog();
+                if (settings.ForceGCBeforeSnapshot)
+                {
+                    try
+                    {
+                        await Task.Run(() => watchDog.ForceRemoteGC(processId));
+                    }
+                    catch
+                    {
+                        // GC trigger can fail, continue with snapshot anyway
+                    }
+                }
+
+                // Take a lightweight aggregated snapshot (objects counted by type, no threads)
                 var filter = new MemoryStatsFilter
                 {
                     CaputureObjects = true,
@@ -499,7 +516,7 @@
 
                 this.AutoWatchStatusText.Text =
                     $"{phase} — {this.selectedProcess?.ProcessName} (PID {processId}) — " +
-                    $"Snapshot #{this.autoSnapshotCount} — {snapshot.CaptureDate:HH:mm:ss}";
+                    $"Snapshot #{this.autoSnapshotCount} — {snapshot.CaptureDate.ToLocalTime():HH:mm:ss}";
 
                 // Run analysis if past warmup and not in cooldown
                 if (!isWarmingUp)
@@ -519,6 +536,7 @@
                         {
                             this.LeakCandidateCountText.Text = $"({candidates.Count})";
                             this.TakeLeakSnapshotButton.IsEnabled = true;
+                            this.ExportReportButton.IsEnabled = true;
                             this.AutoWatchStatusText.Text += $" — 🔴 {candidates.Count} leak candidate(s) found";
                         }
                         else
@@ -600,6 +618,11 @@
 
                 if (stats != null)
                 {
+                    // Cross-reference disposed objects (#4)
+                    this.leakDetector.CrossReferenceDisposedObjects(this.currentLeakCandidates, stats);
+                    this.LeakCandidatesGrid.ItemsSource = null;
+                    this.LeakCandidatesGrid.ItemsSource = this.currentLeakCandidates;
+
                     this.AddSnapshotAndSelect(stats, isAutoSnapshot: true);
                     this.AutoWatchStatusText.Text =
                         $"Detailed snapshot captured — {stats.ObjectCount} types, {stats.Types.Values.Sum(t => t.Count)} objects";
@@ -617,6 +640,48 @@
             {
                 this.isTakingLeakSnapshot = false;
                 this.TakeLeakSnapshotButton.IsEnabled = this.currentLeakCandidates.Count > 0;
+            }
+        }
+
+        private void ExportReportButton_Click(object sender, RoutedEventArgs e)
+        {
+            var settings = this.ReadAutoModeSettings();
+            var report = LeakReport.Build(
+                this.autoSnapshots,
+                this.currentLeakCandidates,
+                settings,
+                this.autoSnapshotCount);
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "JSON Files (*.json)|*.json|Text Files (*.txt)|*.txt|All Files (*.*)|*.*",
+                DefaultExt = "json",
+                FileName = $"LeakReport_{report.ProcessName}_{DateTime.Now:yyyyMMdd_HHmmss}"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    if (dialog.FileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        System.IO.File.WriteAllText(dialog.FileName, report.BuildSummary());
+                    }
+                    else
+                    {
+                        report.WriteToFile(dialog.FileName);
+                    }
+
+                    this.AutoWatchStatusText.Text = $"Report exported to {dialog.FileName}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"Failed to export report:\n\n{ex.Message}",
+                        "Export Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
             }
         }
 
@@ -743,8 +808,8 @@
                 {
                     List<string> reasons = new List<string>();
                     if (this.IsStatic) reasons.Add("static");
-                    if (this.IsEventHandler) reasons.Add("event not released");
-                    if (this.IsDisposed == true) reasons.Add("disposed but this in memory");
+                    if (this.IsEventHandler) reasons.Add("event (not released)");
+                    if (this.IsDisposed == true) reasons.Add("disposed (but in memory)");
                     return string.Join(", ", reasons);
                 }
             }

@@ -142,7 +142,7 @@
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                memoryStats.CaptureDate = DateTime.UtcNow;
+                memoryStats.CaptureDate = DateTime.Now;
                 memoryStats.ProcessId = processId.Value;
 
                 // Overview stats
@@ -360,15 +360,19 @@
                                 ElementType = type?.ElementType.ToString(),
                                 Address = obj.Address,
                                 AssemblyName = type?.Module?.AssemblyName ?? "Unknown Assembly",
-                                // Fields = !isSystemObj ? ClrReader.GetFields(obj, type) : null,
-                                DisplayValue = memoryStatsFilter.CaptureDisplayValues && !isSystemObj ? ClrReader.GetDisplayValue(obj, type) : "",
-                                IsDisposed = !isSystemObj && ClrReader.IsObjectDisposed(obj, type),
-                                // IsStatic = !isSystemObj && staticRootAddresses.Contains(obj.Address),
-                                // IsEventHandler = !isSystemObj && ClrReader.IsEventHandler(type)
+                                // Fields = !isSystemObj ? ClrReader.GetFields(obj, type) : null,                           
                             };
 
                             if (!memoryStatsFilter.AggregateObjects)
                             {
+                                if (!isSystemObj)
+                                {
+                                    objInfo.DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrReader.GetDisplayValue(obj, type) : "";
+                                    objInfo.IsDisposed = ClrReader.IsObjectDisposed(obj, type);
+                                    objInfo.IsStatic = staticRootAddresses.Contains(obj.Address);
+                                    objInfo.IsEventHandler = ClrReader.IsEventHandler(type);
+                                }
+
                                 // Register this object so references from later objects can reuse it
                                 // objectsByAddress[obj.Address] = objInfo;
 
