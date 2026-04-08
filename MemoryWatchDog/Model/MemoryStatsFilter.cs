@@ -10,6 +10,10 @@
 
         public bool AggregateObjects { get; set; } = true;
 
+        public bool CaputureObjects { get; set; } = true;
+
+        public bool CaputureThreads { get; set; } = true;
+
         public bool CaptureDisplayValues { get; set; } = true;
 
         public MemoryStatsFilter()

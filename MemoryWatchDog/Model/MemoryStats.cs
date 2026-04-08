@@ -18,8 +18,10 @@
 
         public string ProcessName { get; set; }
 
+        [Description("Total size of the heap")]
         public long TotalSize { get; set; }
 
+        [Description("Total size of the collected objects in the heap")]
         public long TotalCollectedObjectSize
         {
             get { return this.Types.Sum(o => (long)o.Value.Size); }
@@ -40,12 +42,38 @@
 
         public int WindowsThreadPoolThreadCount { get; set; }
 
+        public long WorkingSet { get; set; }
+
+        [Description("Size of the private bytes")]
+        public long PrivateBytes { get; set; }
+
+        [Description("Size of the GC heap")]
+        public long GCHeapSize { get; set; }
+
+        [Description("Size of the objects in generation 0 (Gen0)")]
+        public long Gen0Size { get; set; }
+
+        [Description("Size of the objects in generation 1 (Gen1)")]
+        public long Gen1Size { get; set; }
+
+        [Description("Size of the objects in generation 2 (Gen2)")]
+        public long Gen2Size { get; set; }
+
+        [Description("Size of the objects in the large object heap (LOH)")]
+        public long LOHSize { get; set; }
+
+        [Description("Size of the objects in the pinned object heap (POH)")]
+        public long POHSize { get; set; }
+
         [Description("Types grouping the objects by their type name")]
         public Dictionary<string, TypeInfo> Types { get; set; } = new Dictionary<string, TypeInfo>();
 
+        [Description("Threads in the process")]
         public List<ThreadInfo> Threads { get; } = new List<ThreadInfo>();
 
+        [Description("The .NET version of the process")]
         public string NETVersion { get; internal set; }
+
 
         public void Clear()
         {

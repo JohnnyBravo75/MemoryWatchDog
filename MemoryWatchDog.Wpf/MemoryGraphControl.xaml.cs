@@ -14,7 +14,7 @@ namespace MemoryWatchDogApp
     {
         private const int MaxPoints = 150;
 
-        private readonly List<LiveMemorySnapshot> snapshots = new List<LiveMemorySnapshot>();
+        private readonly List<MemoryStats> snapshots = new List<MemoryStats>();
         private readonly ObservableCollection<LegendItem> legendItems = new ObservableCollection<LegendItem>();
 
         private static readonly SeriesInfo[] AllSeries = new[]
@@ -56,7 +56,7 @@ namespace MemoryWatchDogApp
             }
         }
 
-        public void AddSnapshot(LiveMemorySnapshot snapshot)
+        public void AddSnapshot(MemoryStats snapshot)
         {
             this.snapshots.Add(snapshot);
             if (this.snapshots.Count > MaxPoints)
@@ -131,7 +131,7 @@ namespace MemoryWatchDogApp
             }
         }
 
-        private static long[] GetValues(LiveMemorySnapshot s)
+        private static long[] GetValues(MemoryStats s)
         {
             return new long[]
             {

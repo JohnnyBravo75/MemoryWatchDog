@@ -144,28 +144,28 @@
 
                 memoryStats.CaptureDate = DateTime.UtcNow;
                 memoryStats.ProcessId = processId.Value;
-                try
-                {
-                    memoryStats.ProcessName = Process.GetProcessById(processId.Value).ProcessName;
-                }
-                catch
-                {  // Process may have exited
-                }
-                memoryStats.NETVersion = runtime.ClrInfo.Version?.ToString();
-                memoryStats.CpuUtilizationPercent = runtime.ThreadPool.CpuUtilization;
 
-                memoryStats.ActiveWorkerThreads = runtime.ThreadPool.ActiveWorkerThreads;
-                memoryStats.IdleWorkerThreads = runtime.ThreadPool.IdleWorkerThreads;
-                memoryStats.WindowsThreadPoolThreadCount = runtime.ThreadPool.WindowsThreadPoolThreadCount;
-                memoryStats.MaxThreads = runtime.ThreadPool.MaxThreads;
+                // Overview stats
+                ReadOverviewStats(runtime, memoryStats);
 
                 // Threads
-                this.ReadThreads(runtime, memoryStats, cancellationToken);
+                if (memoryStatsFilter.CaputureThreads)
+                {
+                    memoryStats.ActiveWorkerThreads = runtime.ThreadPool.ActiveWorkerThreads;
+                    memoryStats.IdleWorkerThreads = runtime.ThreadPool.IdleWorkerThreads;
+                    memoryStats.WindowsThreadPoolThreadCount = runtime.ThreadPool.WindowsThreadPoolThreadCount;
+                    memoryStats.MaxThreads = runtime.ThreadPool.MaxThreads;
+
+                    this.ReadThreads(runtime, memoryStats, cancellationToken);
+                }
 
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // Heap (Objects in Memory)
-                this.ReadHeap(runtime, memoryStats, memoryStatsFilter, cancellationToken);
+                if (memoryStatsFilter.CaputureObjects)
+                {
+                    this.ReadHeap(runtime, memoryStats, memoryStatsFilter, cancellationToken);
+                }
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -182,8 +182,64 @@
             }
         }
 
+        private static void ReadOverviewStats(ClrRuntime runtime, MemoryStats memoryStats)
+        {
+            try
+            {
+                var process = Process.GetProcessById(memoryStats.ProcessId);
+                process.Refresh();
+                memoryStats.ProcessName = process.ProcessName;
+                memoryStats.WorkingSet = process.WorkingSet64;
+                memoryStats.PrivateBytes = process.PrivateMemorySize64;
+            }
+            catch
+            {  // Process may have exited
+            }
+
+            memoryStats.NETVersion = runtime.ClrInfo.Version?.ToString();
+            memoryStats.CpuUtilizationPercent = runtime.ThreadPool.CpuUtilization;
+
+            // Collect GC heap segment sizes
+            try
+            {
+                foreach (var segment in runtime.Heap.Segments)
+                {
+                    long size = (long)segment.Length;
+                    memoryStats.GCHeapSize += size;
+
+                    switch (segment.Kind)
+                    {
+                        case GCSegmentKind.Generation0:
+                            memoryStats.Gen0Size += size;
+                            break;
+                        case GCSegmentKind.Generation1:
+                            memoryStats.Gen1Size += size;
+                            break;
+                        case GCSegmentKind.Generation2:
+                            memoryStats.Gen2Size += size;
+                            break;
+                        case GCSegmentKind.Large:
+                            memoryStats.LOHSize += size;
+                            break;
+                        case GCSegmentKind.Pinned:
+                            memoryStats.POHSize += size;
+                            break;
+                    }
+                }
+            }
+            catch
+            {
+                // Segment enumeration can fail under contention
+            }
+        }
+
         private void FilterByMaxObjects(MemoryStats memoryStats, MemoryStatsFilter memoryStatsFilter)
         {
+            if (memoryStatsFilter.MinObjectCount <= 1)
+            {
+                return;
+            }
+
             foreach (var objKey in memoryStats.Types.Keys.ToList())
             {
                 if (memoryStats.Types[objKey].Count < memoryStatsFilter.MinObjectCount)

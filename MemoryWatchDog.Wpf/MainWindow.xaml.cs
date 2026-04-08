@@ -400,12 +400,18 @@
 
             try
             {
-                var snapshot = await Task.Run(() => ClrReader.CaptureLiveSnapshot(processId));
+                var watchDog = new MemoryWatchDog();
+                var filter = new MemoryStatsFilter
+                {
+                    CaputureObjects = false,
+                    CaputureThreads = false
+                };
+                var snapshot = await Task.Run(() => watchDog.GetMemoryStats(filter, processId));
                 if (this.isProfiling)
                 {
                     this.MemoryGraph.AddSnapshot(snapshot);
                     this.ProfilingStatusText.Text =
-                        $"Profiling {this.selectedProcess?.ProcessName} (PID {processId}) — {snapshot.Timestamp:HH:mm:ss}";
+                        $"Profiling {this.selectedProcess?.ProcessName} (PID {processId}) — {snapshot.CaptureDate:HH:mm:ss}";
                 }
             }
             catch
