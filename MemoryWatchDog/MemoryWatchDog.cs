@@ -86,7 +86,7 @@
                 var memUsage = GC.GetTotalMemory(forceFullCollection: true);
                 if (memUsage > this.MinMemoryCleanupLimitBytes)
                 {
-                    this.CleanupMemory();
+                    this.ForceGC();
 
                     if (this.WriteMemStatsFile)
                     {
@@ -103,7 +103,7 @@
             }
         }
 
-        public void CleanupMemory()
+        public void ForceGC()
         {
             ClrUtil.ForceGC();
         }
@@ -248,6 +248,11 @@
 
                 var staticRootAddresses = ClrReader.BuildStaticRootAddresses(runtime);
 
+                // Lookup to reuse already-created ObjectInfo instances for references
+                //var objectsByAddress = !memoryStatsFilter.AggregateObjects
+                //    ? new Dictionary<ulong, ObjectInfo>()
+                //    : null;
+
                 foreach (var obj in runtime.Heap.EnumerateObjects())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -255,7 +260,7 @@
                     objectsProcessed++;
                     if (objectsProcessed % 1000 == 0)
                     {
-                        this.CaptureProgress?.Invoke(this, new CaptureProgressEventArgs(objectsProcessed, memoryStats.Types.Count));
+                        this.CaptureProgress?.Invoke(this, new CaptureProgressEventArgs(objectsProcessed, memoryStats.Types.Count, $"Objects: {objectsProcessed} | Types: {memoryStats.Types.Count}"));
                     }
 
                     try
@@ -292,36 +297,41 @@
                                 ElementType = type?.ElementType.ToString(),
                                 Address = obj.Address,
                                 AssemblyName = type?.Module?.AssemblyName ?? "Unknown Assembly",
-                                Fields = !isSystemObj ? ClrReader.GetFields(obj, type) : null,
+                                // Fields = !isSystemObj ? ClrReader.GetFields(obj, type) : null,
                                 DisplayValue = memoryStatsFilter.CaptureDisplayValues && !isSystemObj ? ClrReader.GetDisplayValue(obj, type) : "",
                                 IsDisposed = !isSystemObj && ClrReader.IsObjectDisposed(obj, type),
-                                IsStatic = !isSystemObj && staticRootAddresses.Contains(obj.Address),
-                                IsEventHandler = !isSystemObj && ClrReader.IsEventHandler(type)
+                                // IsStatic = !isSystemObj && staticRootAddresses.Contains(obj.Address),
+                                // IsEventHandler = !isSystemObj && ClrReader.IsEventHandler(type)
                             };
 
                             if (!memoryStatsFilter.AggregateObjects)
                             {
+                                // Register this object so references from later objects can reuse it
+                                // objectsByAddress[obj.Address] = objInfo;
+
                                 // Build field name lookup: address → field name for this object's fields
                                 var fieldNames = !isSystemObj ? ClrReader.GetReferenceFieldNames(obj, type) : null;
 
                                 // Enumerate references from this object
                                 foreach (var refObj in obj.EnumerateReferences())
                                 {
+                                    ObjectInfo refObjInfo;
+
+                                    // Reuse an already-scanned ObjectInfo if available
+                                    //if (!objectsByAddress.TryGetValue(refObj.Address, out refObjInfo))
+                                    //{
                                     var isSystemRefObj = ClrReader.IsSystemType(refObj.Type);
-                                    var refObjInfo = new ObjectInfo
+                                    refObjInfo = new ObjectInfo
                                     {
                                         Reference = refObj,
                                         TypeName = refObj.Type?.Name ?? "Unknown",
                                         Size = refObj.Size,
                                         ElementType = refObj.Type?.ElementType.ToString(),
                                         Address = refObj.Address,
-                                        AssemblyName = refObj.Type?.Module?.AssemblyName ?? "Unknown Assembly",
-                                        // Fields = ClrReader.GetFields(obj, refObj.Type), //  Can lead to problems and hang
+                                        // AssemblyName = refObj.Type?.Module?.AssemblyName ?? "Unknown Assembly",
                                         DisplayValue = memoryStatsFilter.CaptureDisplayValues && !isSystemRefObj ? ClrReader.GetDisplayValue(refObj, refObj.Type) : "",
-                                        IsDisposed = ClrReader.IsObjectDisposed(refObj, refObj.Type),
-                                        IsStatic = !isSystemRefObj && staticRootAddresses.Contains(refObj.Address),
-                                        IsEventHandler = !isSystemRefObj && ClrReader.IsEventHandler(refObj.Type)
                                     };
+                                    //}
 
                                     if (fieldNames != null && fieldNames.TryGetValue(refObj.Address, out var fieldName))
                                     {
@@ -341,11 +351,9 @@
                     }
                 }
 
-                this.CaptureProgress?.Invoke(this, new CaptureProgressEventArgs(objectsProcessed, memoryStats.Types.Count));
+                this.CaptureProgress?.Invoke(this, new CaptureProgressEventArgs(objectsProcessed, memoryStats.Types.Count, $"Objects: {objectsProcessed} | Types: {memoryStats.Types.Count}"));
             }
         }
-
-
 
     }
 }

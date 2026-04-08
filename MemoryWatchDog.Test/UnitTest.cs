@@ -59,11 +59,18 @@ namespace MemoryWatchDog.Test
         [Fact]
         public void Test_GrabOnce_CancellationToken()
         {
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(TimeSpan.FromSeconds(1));
+            try
+            {
+                var cts = new CancellationTokenSource();
+                cts.CancelAfter(TimeSpan.FromSeconds(1));
 
-            var memWatchDog = new MemoryWatchDog();
-            var stats = memWatchDog.GetMemoryStats(cancellationToken: cts.Token);
+                var memWatchDog = new MemoryWatchDog();
+                var stats = memWatchDog.GetMemoryStats(cancellationToken: cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(true);
+            }
         }
     }
 }

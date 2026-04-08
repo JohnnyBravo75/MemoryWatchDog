@@ -8,10 +8,13 @@ namespace MemoryWatchDog
 
         public int TypesFound { get; }
 
-        public CaptureProgressEventArgs(int objectsProcessed, int typesFound)
+        public string Message { get; }
+
+        public CaptureProgressEventArgs(int objectsProcessed, int typesFound, string message = null)
         {
             this.ObjectsProcessed = objectsProcessed;
             this.TypesFound = typesFound;
+            this.Message = message;
         }
     }
 }

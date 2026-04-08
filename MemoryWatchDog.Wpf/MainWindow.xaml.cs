@@ -88,7 +88,7 @@
             this.ObjectsGrid.ItemsSource = null;
             this.ThreadsGrid.ItemsSource = null;
 
-            this.CaptureProgressText.Text = "Objects: 0 | Types: 0";
+            this.CaptureProgressText.Text = "Attaching...";
             this.CaptureProgressPanel.Visibility = Visibility.Visible;
 
             this.captureCts = new CancellationTokenSource();
@@ -106,8 +106,11 @@
 
             try
             {
+                // clean up myself
+                watchDog.ForceGC();
 
-                watchDog.CleanupMemory();
+                // clean up target
+                watchDog.ForceRemoteGC(selectedProcess.Id);
 
                 // Filter
                 var excludeSystemNs = this.ExcludeSystemNamespacesCheckBox.IsChecked == true;
@@ -354,9 +357,14 @@
 
         private void StartProfilingButton_Click(object sender, RoutedEventArgs e)
         {
+            this.StartProfiling();
+        }
+
+        private bool StartProfiling()
+        {
             if (this.selectedProcess == null)
             {
-                return;
+                return false;
             }
 
             this.isProfiling = true;
@@ -377,6 +385,7 @@
             // Take first snapshot immediately
             this.ProfilingTimer_Tick(this, EventArgs.Empty);
             this.profilingTimer.Start();
+            return true;
         }
 
         private async void ProfilingTimer_Tick(object? sender, EventArgs e)

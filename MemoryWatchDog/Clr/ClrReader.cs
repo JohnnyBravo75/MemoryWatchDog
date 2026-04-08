@@ -14,6 +14,8 @@
 
     public class ClrReader
     {
+        static List<string> systemNamespaces = GetSystemNamespaces();
+
         public static ClrRuntime AttachToClr(int? processId = null)
         {
             if (processId == null)
@@ -120,8 +122,6 @@
             {
                 return false;
             }
-
-            var systemNamespaces = GetSystemNamespaces();
 
             foreach (var systemNamespace in systemNamespaces)
             {

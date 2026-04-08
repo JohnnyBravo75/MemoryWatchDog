@@ -16,6 +16,7 @@
             {
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
+                GC.Collect();
 
                 // This is for compression the LOH (Large Object Heap) - this is not done by defualt and could fragment your memory and and memory could grow
                 // https://web.archive.org/web/20201027035717/https://www.wintellect.com/hey-who-stole-all-my-memory/
