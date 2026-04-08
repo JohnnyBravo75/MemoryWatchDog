@@ -8,6 +8,7 @@
     using System.Windows.Controls;
     using System.Windows.Data;
     using System.Windows.Input;
+    using System.Windows.Media;
     using System.Windows.Threading;
     using MemoryWatchDog;
 
@@ -21,10 +22,18 @@
         private string objectsFilterText = string.Empty;
         private MemoryStats? currentStats;
         private CancellationTokenSource? captureCts;
-        private DispatcherTimer? profilingTimer;
-        private bool isProfiling;
-        private bool isCollectingSnapshot;
         private ObservableCollection<SnapshotItem> snapshots = new ObservableCollection<SnapshotItem>();
+
+        // Auto Watch mode fields
+        private DispatcherTimer? autoWatchTimer;
+        private bool isAutoWatching;
+        private bool isCollectingAutoSnapshot;
+        private bool isTakingLeakSnapshot;
+        private List<MemoryStats> autoSnapshots = new List<MemoryStats>();
+        private List<LeakCandidate> currentLeakCandidates = new List<LeakCandidate>();
+        private LeakDetector leakDetector = new LeakDetector();
+        private int autoSnapshotCount;
+        private int cooldownRemaining;
 
         public MainWindow()
         {
@@ -44,7 +53,7 @@
                 this.SelectedProcessText.Text = $"{this.selectedProcess.ProcessName}  (PID {this.selectedProcess.Id})";
                 this.AttachButton.IsEnabled = true;
                 this.ForceGCButton.IsEnabled = true;
-                this.StartProfilingButton.IsEnabled = true;
+                this.StartAutoWatchButton.IsEnabled = true;
             }
         }
 
@@ -81,7 +90,6 @@
             //this.ExportTxtButton.IsEnabled = false;
             this.ExportJsonButton.IsEnabled = false;
             this.CancelButton.IsEnabled = true;
-            this.StartProfilingButton.IsEnabled = false;
             this.currentStats = null;
             this.StatusText.Text = $"Analyzing process {selectedProcess.ProcessName} (PID {selectedProcess.Id})...";
             this.OverviewText.Text = "Loading memory statistics, please wait...";
@@ -153,7 +161,6 @@
                 this.AttachButton.IsEnabled = this.selectedProcess != null;
                 this.SelectProcessButton.IsEnabled = true;
                 this.CancelButton.IsEnabled = false;
-                this.StartProfilingButton.IsEnabled = this.selectedProcess != null;
                 this.CaptureProgressPanel.Visibility = Visibility.Collapsed;
 
                 this.captureCts?.Dispose();
@@ -235,7 +242,7 @@
                     .SelectMany(t => t.Objects)
                     .Where(o => o.IsDisposed)
                     .OrderByDescending(o => o.Size)
-                    .Select(o => new DisposedObjectItem(o))
+                    .Select(o => new PotentialLeakObjectItem(o))
                     .ToList();
                 this.PotentialLeaksGrid.ItemsSource = disposedObjects;
                 this.PotentialLeaksCountText.Text = disposedObjects.Count > 0 ? $"({disposedObjects.Count})" : "";
@@ -355,108 +362,267 @@
             detailWindow.Show();
         }
 
-        private void StartProfilingButton_Click(object sender, RoutedEventArgs e)
+        // ======================== Auto Watch Mode ========================
+
+        private void ModeTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            this.StartProfiling();
+            if (e.Source != this.ModeTabControl)
+            {
+                return;
+            }
         }
 
-        private bool StartProfiling()
+        private AutoModeSettings ReadAutoModeSettings()
+        {
+            var settings = new AutoModeSettings();
+
+            if (int.TryParse(this.AutoIntervalTextBox.Text, out int interval) && interval >= 10 && interval <= 600)
+            {
+                settings.SnapshotIntervalSeconds = interval;
+            }
+
+            if (int.TryParse(this.AutoMaxSnapshotsTextBox.Text, out int maxSnap) && maxSnap >= 5 && maxSnap <= 100)
+            {
+                settings.MaxSnapshotsToKeep = maxSnap;
+            }
+
+            if (int.TryParse(this.AutoWarmupTextBox.Text, out int warmup) && warmup >= 2 && warmup <= 50)
+            {
+                settings.WarmupSnapshotCount = warmup;
+            }
+
+            if (int.TryParse(this.AutoMinGrowthTextBox.Text, out int minGrowth) && minGrowth >= 2 && minGrowth <= 50)
+            {
+                settings.MinConsecutiveGrowthCount = minGrowth;
+            }
+
+            return settings;
+        }
+
+        private void StartAutoWatchButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.StartAutoWatch();
+        }
+
+        private void StopAutoWatchButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.StopAutoWatch();
+        }
+
+        private bool StartAutoWatch()
         {
             if (this.selectedProcess == null)
             {
                 return false;
             }
 
-            this.isProfiling = true;
-            this.ProfilingPanel.Visibility = Visibility.Visible;
+            var settings = this.ReadAutoModeSettings();
+
+            this.isAutoWatching = true;
+            this.autoSnapshotCount = 0;
+            this.cooldownRemaining = 0;
+            this.autoSnapshots.Clear();
+            this.currentLeakCandidates.Clear();
             this.MemoryGraph.Clear();
-            this.StartProfilingButton.IsEnabled = false;
-            this.StopProfilingButton.IsEnabled = true;
+            this.LeakCandidatesGrid.ItemsSource = null;
+            this.LeakCandidateCountText.Text = "";
+            this.TakeLeakSnapshotButton.IsEnabled = false;
+
+            this.StartAutoWatchButton.IsEnabled = false;
+            this.StopAutoWatchButton.IsEnabled = true;
             this.AttachButton.IsEnabled = false;
             this.SelectProcessButton.IsEnabled = false;
-            this.ProfilingStatusText.Text = $"Profiling {this.selectedProcess.ProcessName} (PID {this.selectedProcess.Id})...";
+            this.AutoWatchStatusText.Text = $"Starting watch on {this.selectedProcess.ProcessName} (PID {this.selectedProcess.Id})...";
 
-            this.profilingTimer = new DispatcherTimer
+            // Disable settings editing while running
+            this.AutoIntervalTextBox.IsEnabled = false;
+            this.AutoMaxSnapshotsTextBox.IsEnabled = false;
+            this.AutoWarmupTextBox.IsEnabled = false;
+            this.AutoMinGrowthTextBox.IsEnabled = false;
+
+            this.autoWatchTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(2)
+                Interval = TimeSpan.FromSeconds(settings.SnapshotIntervalSeconds)
             };
-            this.profilingTimer.Tick += this.ProfilingTimer_Tick;
+            this.autoWatchTimer.Tick += this.AutoWatchTimer_Tick;
 
             // Take first snapshot immediately
-            this.ProfilingTimer_Tick(this, EventArgs.Empty);
-            this.profilingTimer.Start();
+            this.AutoWatchTimer_Tick(this, EventArgs.Empty);
+            this.autoWatchTimer.Start();
             return true;
         }
 
-        private async void ProfilingTimer_Tick(object? sender, EventArgs e)
+        private async void AutoWatchTimer_Tick(object? sender, EventArgs e)
         {
-            if (!this.isProfiling || this.selectedProcess == null || this.isCollectingSnapshot)
+            if (!this.isAutoWatching || this.selectedProcess == null || this.isCollectingAutoSnapshot)
             {
                 return;
             }
 
-            this.isCollectingSnapshot = true;
+            this.isCollectingAutoSnapshot = true;
             int processId = this.selectedProcess.Id;
+            var settings = this.ReadAutoModeSettings();
 
             try
             {
-                var watchDog = new MemoryWatchDog();
+                // Take a lightweight aggregated snapshot (objects counted by type, no threads)
+                using var watchDog = new MemoryWatchDog();
                 var filter = new MemoryStatsFilter
                 {
-                    CaputureObjects = false,
-                    CaputureThreads = false
+                    CaputureObjects = true,
+                    AggregateObjects = true,
+                    CaputureThreads = false,
+                    CaptureDisplayValues = false
                 };
+
                 var snapshot = await Task.Run(() => watchDog.GetMemoryStats(filter, processId));
-                if (this.isProfiling)
+
+                if (!this.isAutoWatching)
                 {
-                    this.MemoryGraph.AddSnapshot(snapshot);
-                    this.ProfilingStatusText.Text =
-                        $"Profiling {this.selectedProcess?.ProcessName} (PID {processId}) — {snapshot.CaptureDate:HH:mm:ss}";
+                    return;
+                }
+
+                this.autoSnapshotCount++;
+                this.autoSnapshots.Add(snapshot);
+
+                // Update memory graph
+                this.MemoryGraph.AddSnapshot(snapshot);
+
+                // Prune if needed
+                LeakDetector.PruneSnapshots(this.autoSnapshots, settings.MaxSnapshotsToKeep);
+
+                // Update status
+                bool isWarmingUp = this.autoSnapshots.Count < settings.WarmupSnapshotCount;
+                string phase = isWarmingUp
+                    ? $"Warming up ({this.autoSnapshots.Count}/{settings.WarmupSnapshotCount})"
+                    : "Analyzing";
+
+                this.AutoWatchStatusText.Text =
+                    $"{phase} — {this.selectedProcess?.ProcessName} (PID {processId}) — " +
+                    $"Snapshot #{this.autoSnapshotCount} — {snapshot.CaptureDate:HH:mm:ss}";
+
+                // Run analysis if past warmup and not in cooldown
+                if (!isWarmingUp)
+                {
+                    if (this.cooldownRemaining > 0)
+                    {
+                        this.cooldownRemaining--;
+                        this.AutoWatchStatusText.Text += $" — Cooldown ({this.cooldownRemaining} remaining)";
+                    }
+                    else
+                    {
+                        var candidates = this.leakDetector.Analyze(this.autoSnapshots, settings);
+                        this.currentLeakCandidates = candidates;
+                        this.LeakCandidatesGrid.ItemsSource = candidates;
+
+                        if (candidates.Count > 0)
+                        {
+                            this.LeakCandidateCountText.Text = $"({candidates.Count})";
+                            this.TakeLeakSnapshotButton.IsEnabled = true;
+                            this.AutoWatchStatusText.Text += $" — 🔴 {candidates.Count} leak candidate(s) found";
+                        }
+                        else
+                        {
+                            this.LeakCandidateCountText.Text = "";
+                            this.TakeLeakSnapshotButton.IsEnabled = false;
+                        }
+                    }
                 }
             }
             catch
             {
-                this.StopProfiling();
-                this.ProfilingStatusText.Text = "Process exited or became unavailable.";
+                this.StopAutoWatch();
+                this.AutoWatchStatusText.Text = "Process exited or became unavailable.";
             }
             finally
             {
-                this.isCollectingSnapshot = false;
+                this.isCollectingAutoSnapshot = false;
             }
         }
 
-
-        private void StopProfilingButton_Click(object sender, RoutedEventArgs e)
+        private void StopAutoWatch()
         {
-            this.StopProfiling();
-        }
+            this.isAutoWatching = false;
 
-        private void StopProfiling()
-        {
-            this.isProfiling = false;
-
-            if (this.profilingTimer != null)
+            if (this.autoWatchTimer != null)
             {
-                this.profilingTimer.Stop();
-                this.profilingTimer.Tick -= this.ProfilingTimer_Tick;
-                this.profilingTimer = null;
+                this.autoWatchTimer.Stop();
+                this.autoWatchTimer.Tick -= this.AutoWatchTimer_Tick;
+                this.autoWatchTimer = null;
             }
 
-            this.StartProfilingButton.IsEnabled = this.selectedProcess != null;
-            this.StopProfilingButton.IsEnabled = false;
+            this.StartAutoWatchButton.IsEnabled = this.selectedProcess != null;
+            this.StopAutoWatchButton.IsEnabled = false;
             this.AttachButton.IsEnabled = this.selectedProcess != null;
             this.SelectProcessButton.IsEnabled = true;
 
-            if (string.IsNullOrEmpty(this.ProfilingStatusText.Text) ||
-                !this.ProfilingStatusText.Text.Contains("unavailable"))
+            // Re-enable settings editing
+            this.AutoIntervalTextBox.IsEnabled = true;
+            this.AutoMaxSnapshotsTextBox.IsEnabled = true;
+            this.AutoWarmupTextBox.IsEnabled = true;
+            this.AutoMinGrowthTextBox.IsEnabled = true;
+
+            if (string.IsNullOrEmpty(this.AutoWatchStatusText.Text) ||
+                !this.AutoWatchStatusText.Text.Contains("unavailable"))
             {
-                this.ProfilingStatusText.Text = "Profiling stopped.";
+                this.AutoWatchStatusText.Text += " — Stopped.";
+            }
+        }
+
+        private async void TakeLeakSnapshotButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.selectedProcess == null || this.currentLeakCandidates.Count == 0 || this.isTakingLeakSnapshot)
+            {
+                return;
+            }
+
+            this.isTakingLeakSnapshot = true;
+            this.TakeLeakSnapshotButton.IsEnabled = false;
+            int processId = this.selectedProcess.Id;
+            var suspectTypeNames = this.currentLeakCandidates.Select(c => c.TypeName).ToList();
+
+            this.AutoWatchStatusText.Text += " — Taking detailed snapshot of suspects...";
+
+            try
+            {
+                using var watchDog = new MemoryWatchDog();
+                var filter = new MemoryStatsFilter
+                {
+                    CaputureObjects = true,
+                    AggregateObjects = false,
+                    CaputureThreads = false,
+                    CaptureDisplayValues = true,
+                    IncludeTypeNames = suspectTypeNames,
+                    ExcludeNameSpaces = new List<string>()
+                };
+
+                var stats = await Task.Run(() => watchDog.GetMemoryStats(filter, processId));
+
+                if (stats != null)
+                {
+                    this.AddSnapshotAndSelect(stats, isAutoSnapshot: true);
+                    this.AutoWatchStatusText.Text =
+                        $"Detailed snapshot captured — {stats.ObjectCount} types, {stats.Types.Values.Sum(t => t.Count)} objects";
+
+                    // Enter cooldown
+                    var settings = this.ReadAutoModeSettings();
+                    this.cooldownRemaining = settings.CooldownIntervalsAfterCapture;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.AutoWatchStatusText.Text = $"Failed to take detailed snapshot: {ex.Message}";
+            }
+            finally
+            {
+                this.isTakingLeakSnapshot = false;
+                this.TakeLeakSnapshotButton.IsEnabled = this.currentLeakCandidates.Count > 0;
             }
         }
 
         private void PotentialLeaksGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (this.PotentialLeaksGrid.SelectedItem is not DisposedObjectItem item)
+            if (this.PotentialLeaksGrid.SelectedItem is not PotentialLeakObjectItem item)
             {
                 return;
             }
@@ -471,13 +637,13 @@
 
         protected override void OnClosed(EventArgs e)
         {
-            this.StopProfiling();
+            this.StopAutoWatch();
             base.OnClosed(e);
         }
 
-        private void AddSnapshotAndSelect(MemoryStats stats)
+        private void AddSnapshotAndSelect(MemoryStats stats, bool isAutoSnapshot = false)
         {
-            var item = new SnapshotItem(stats);
+            var item = new SnapshotItem(stats, isAutoSnapshot);
             this.snapshots.Add(item);
             this.SnapshotsListBox.SelectedItem = item;
         }
@@ -548,20 +714,41 @@
 
         private class SnapshotItem
         {
+            private static readonly SolidColorBrush ManualBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x66, 0x99));
+            private static readonly SolidColorBrush AutoBrush = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+
             public MemoryStats? Stats { get; set; }
             public string DisplayDate { get; set; }
             public string DisplayProcess { get; set; }
+            public bool IsAutoSnapshot { get; set; }
+            public string ModeTag { get; set; }
+            public SolidColorBrush ModeTagBrush { get; set; }
 
-            public SnapshotItem(MemoryStats stats)
+            public SnapshotItem(MemoryStats stats, bool isAutoSnapshot = false)
             {
                 this.Stats = stats;
+                this.IsAutoSnapshot = isAutoSnapshot;
                 this.DisplayDate = stats.CaptureDate.ToString("yyyy-MM-dd HH:mm:ss");
                 this.DisplayProcess = $"{stats.ProcessName} (PID {stats.ProcessId})";
+                this.ModeTag = isAutoSnapshot ? "Auto" : "Manual";
+                this.ModeTagBrush = isAutoSnapshot ? AutoBrush : ManualBrush;
             }
         }
 
-        private class DisposedObjectItem
+        private class PotentialLeakObjectItem
         {
+            public string LeakReason
+            {
+                get
+                {
+                    List<string> reasons = new List<string>();
+                    if (this.IsStatic) reasons.Add("static");
+                    if (this.IsEventHandler) reasons.Add("event not released");
+                    if (this.IsDisposed == true) reasons.Add("disposed but this in memory");
+                    return string.Join(", ", reasons);
+                }
+            }
+
             public ObjectInfo? ObjectInfo { get; set; }
             public string TypeName { get; }
             public ulong Size { get; }
@@ -571,10 +758,9 @@
             public string AssemblyName { get; }
             public bool IsStatic { get; }
             public bool IsEventHandler { get; }
-            public string StaticText { get; }
-            public string EventHandlerText { get; }
+            public bool IsDisposed { get; }
 
-            public DisposedObjectItem(ObjectInfo obj)
+            public PotentialLeakObjectItem(ObjectInfo obj)
             {
                 this.ObjectInfo = obj;
                 this.TypeName = obj.TypeName;
@@ -585,8 +771,7 @@
                 this.AssemblyName = obj.AssemblyName;
                 this.IsStatic = obj.IsStatic;
                 this.IsEventHandler = obj.IsEventHandler;
-                this.StaticText = obj.IsStatic ? "● static" : "";
-                this.EventHandlerText = obj.IsEventHandler ? "● event" : "";
+                this.IsDisposed = obj.IsDisposed;
             }
         }
 

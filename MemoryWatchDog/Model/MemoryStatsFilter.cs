@@ -49,6 +49,12 @@
 
         public long MinObjectCount { get; set; } = 1;
 
+        /// <summary>
+        /// When non-empty, only capture objects whose type name exactly matches one of these entries.
+        /// Used for targeted full snapshots of suspected leaking types.
+        /// </summary>
+        public List<string> IncludeTypeNames { get; set; } = new List<string>();
+
         public bool IsInNamespace(string typeName, List<string> namespaces)
         {
             if (string.IsNullOrEmpty(typeName))

@@ -51,6 +51,7 @@ namespace MemoryWatchDogApp
             this.statsA = null;
             this.statsB = null;
             this.allRows = null;
+            this.comparisonView = null;
 
             this.Owner = null;
         }

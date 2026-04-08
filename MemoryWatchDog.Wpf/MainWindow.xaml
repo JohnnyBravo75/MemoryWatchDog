@@ -15,14 +15,12 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Process Selection -->
-        <Grid Grid.Row="0" Margin="0,0,0,15">
+        <Grid Grid.Row="0" Margin="0,0,0,10">
             <Grid.RowDefinitions>
                 <RowDefinition  Height="Auto" />
                 <RowDefinition  Height="*" />
@@ -42,81 +40,159 @@
                        Text="No process selected"/>
         </Grid>
 
-        <!-- Live Profiling Panel -->
-        <Border Grid.Row="1" x:Name="ProfilingPanel" Visibility="Visible"
-                BorderBrush="#336699" BorderThickness="1" CornerRadius="3"
-                Background="#F0F4FA" Margin="0,0,0,8" Padding="8">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="200"/>
-                </Grid.RowDefinitions>
-                <DockPanel Grid.Row="0" Margin="0,0,0,5">
-                    <TextBlock Text="Live Memory Profiling" FontWeight="Bold" FontSize="14"
-                               VerticalAlignment="Center" DockPanel.Dock="Left"/>
-                    <TextBlock x:Name="ProfilingStatusText" VerticalAlignment="Center"
-                               Margin="15,0,0,0" Foreground="DarkBlue" DockPanel.Dock="Left"
-                               FontFamily="Consolas" FontSize="12"/>
-                    <Button x:Name="StopProfilingButton" Content="Stop Profiling" Width="110"
-                            DockPanel.Dock="Right" HorizontalAlignment="Right"
-                            Click="StopProfilingButton_Click" IsEnabled="False"
-                            ToolTip="Stop live memory profiling and detach from the process"/>
-                    <Button x:Name="StartProfilingButton" Content="Start Profiling" Width="110"
-                            Margin="5,0,0,0" DockPanel.Dock="Right" HorizontalAlignment="Right" Click="StartProfilingButton_Click" IsEnabled="False"
-                            ToolTip="Start continuous memory profiling of the selected process"/>
-                </DockPanel>
-                <local:MemoryGraphControl Grid.Row="1" x:Name="MemoryGraph" />
-            </Grid>
-        </Border>
+        <!-- Mode TabControl -->
+        <TabControl x:Name="ModeTabControl" Grid.Row="1" Margin="0,0,0,5" SelectionChanged="ModeTabControl_SelectionChanged">
 
-        <!-- Stats Filter -->
-        <Grid Grid.Row="2" Margin="0,10,0,5">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock x:Name="CaptureHeader" Grid.Row="0" Grid.Column="0" FontWeight="Bold" FontSize="14"
-           Text="Capture" VerticalAlignment="Center" Margin="0,0,0,3"/>
-            <CheckBox x:Name="ExcludeSystemNamespacesCheckBox" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0"
-                      Content="Exclude System Namespaces" VerticalAlignment="Center"
-                      IsChecked="True"
-                      ToolTip="Exclude common system namespaces (System, Microsoft, Windows, etc.) from heap object results"/>
-            <CheckBox x:Name="AggregateObjectsCheckBox" Grid.Row="1" Grid.Column="1" Margin="0,0,10,0"
-                      Content="Aggregate Objects" VerticalAlignment="Center"
-                      IsChecked="False"
-                      ToolTip="Aggregate heap objects by type name (faster and uses less memory. For a detailed view, uncheck this option)"/>
-            <CheckBox x:Name="CaptureDisplayValuesCheckBox" Grid.Row="1" Grid.Column="2" Margin="0,0,10,0"
-                      Content="Capture Display Values" VerticalAlignment="Center"
-                      IsChecked="True"
-                      ToolTip="Capture display values for each object (can be slower for large heaps)"/>
-            <Button x:Name="AttachButton" Grid.Row="1" Grid.Column="3" Content="Get Memory Snapshot" Width="150" 
-                    Click="AttachButton_Click" IsEnabled="False"/>
-            <Button x:Name="ForceGCButton" Grid.Row="1" Grid.Column="4" Content="Force GC" Width="80"
-                    Margin="5,0,0,0" Click="ForceGCButton_Click" IsEnabled="False"
-                    ToolTip="Force garbage collection on the attached process"/>
+            <!-- ==================== Manual Capture Tab ==================== -->
+            <TabItem Header="📷 Manual Capture" x:Name="ManualModeTab">
+                <StackPanel Margin="8">
+                    <Grid Margin="0,0,0,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox x:Name="ExcludeSystemNamespacesCheckBox" Grid.Column="0" Margin="0,0,10,0"
+                                  Content="Exclude System Namespaces" VerticalAlignment="Center"
+                                  IsChecked="True"
+                                  ToolTip="Exclude common system namespaces (System, Microsoft, Windows, etc.) from heap object results"/>
+                        <CheckBox x:Name="AggregateObjectsCheckBox" Grid.Column="1" Margin="0,0,10,0"
+                                  Content="Aggregate Objects" VerticalAlignment="Center"
+                                  IsChecked="False"
+                                  ToolTip="Aggregate heap objects by type name (faster and uses less memory. For a detailed view, uncheck this option)"/>
+                        <CheckBox x:Name="CaptureDisplayValuesCheckBox" Grid.Column="2" Margin="0,0,10,0"
+                                  Content="Capture Display Values" VerticalAlignment="Center"
+                                  IsChecked="True"
+                                  ToolTip="Capture display values for each object (can be slower for large heaps)"/>
+                        <Button x:Name="AttachButton" Grid.Column="3" Content="Get Memory Snapshot" Width="150"
+                                Click="AttachButton_Click" IsEnabled="False"/>
+                        <Button x:Name="ForceGCButton" Grid.Column="4" Content="Force GC" Width="80"
+                                Margin="5,0,0,0" Click="ForceGCButton_Click" IsEnabled="False"
+                                ToolTip="Force garbage collection on the attached process"/>
+                    </Grid>
+                    <StackPanel x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
+                        <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
+                                   Text="Objects: 0 | Types: 0" Foreground="DarkBlue"/>
+                        <ProgressBar x:Name="CaptureProgressBar" Width="200" Height="16" IsIndeterminate="True"/>
+                        <Button x:Name="CancelButton" Content="Cancel" Width="60"
+                            Margin="5,0,0,0" Click="CancelButton_Click" IsEnabled="False"
+                            ToolTip="Cancel the running capture"/>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
 
-        </Grid>
+            <!-- ==================== Auto Watch Tab ==================== -->
+            <TabItem Header="🔍 Auto Watch" x:Name="AutoModeTab">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="200"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-        <!-- Capture Progress -->
-        <StackPanel Grid.Row="3" x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
-            <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
-                       Text="Objects: 0 | Types: 0" Foreground="DarkBlue"/>
-            <ProgressBar x:Name="CaptureProgressBar" Width="200" Height="16" IsIndeterminate="True"/>
-            <Button x:Name="CancelButton" Grid.Column="4" Content="Cancel" Width="60" 
-                Margin="5,0,0,0" Click="CancelButton_Click" IsEnabled="False"
-                ToolTip="Cancel the running capture"/>
-        </StackPanel>
+                    <!-- Settings Row -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Interval (sec):" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox x:Name="AutoIntervalTextBox" Width="50" Text="60" VerticalAlignment="Center"
+                                 ToolTip="Seconds between each lightweight snapshot (10–600)"/>
+                        <TextBlock Text="Max Snapshots:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                        <TextBox x:Name="AutoMaxSnapshotsTextBox" Width="50" Text="20" VerticalAlignment="Center"
+                                 ToolTip="Maximum number of snapshots to keep in the rolling window (5–100)"/>
+                        <TextBlock Text="Warmup:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                        <TextBox x:Name="AutoWarmupTextBox" Width="50" Text="5" VerticalAlignment="Center"
+                                 ToolTip="Number of snapshots to collect before starting leak analysis"/>
+                        <TextBlock Text="Min Growth:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                        <TextBox x:Name="AutoMinGrowthTextBox" Width="50" Text="5" VerticalAlignment="Center"
+                                 ToolTip="Minimum consecutive growths to flag a type as leak candidate"/>
+                    </StackPanel>
+
+                    <!-- Controls Row -->
+                    <DockPanel Grid.Row="1" Margin="0,0,0,5">
+                        <Button x:Name="StartAutoWatchButton" Content="▶ Start Watching" Width="120"
+                                DockPanel.Dock="Left" Click="StartAutoWatchButton_Click" IsEnabled="False"
+                                ToolTip="Start automatic memory monitoring and leak detection"/>
+                        <Button x:Name="StopAutoWatchButton" Content="⏹ Stop" Width="80"
+                                DockPanel.Dock="Left" Margin="5,0,0,0" Click="StopAutoWatchButton_Click" IsEnabled="False"
+                                ToolTip="Stop automatic memory monitoring"/>
+                        <TextBlock x:Name="AutoWatchStatusText" VerticalAlignment="Center"
+                                   Margin="15,0,0,0" Foreground="DarkBlue"
+                                   FontFamily="Consolas" FontSize="12" DockPanel.Dock="Left"/>
+                    </DockPanel>
+
+                    <!-- Memory Graph -->
+                    <Border Grid.Row="2" BorderBrush="#336699" BorderThickness="1" CornerRadius="3"
+                            Background="#F0F4FA" Padding="4">
+                        <local:MemoryGraphControl x:Name="MemoryGraph" />
+                    </Border>
+
+                    <!-- Detected Leaks Header -->
+                    <DockPanel Grid.Row="3" Margin="0,8,0,3">
+                        <TextBlock Text="Detected Leak Candidates" FontWeight="Bold" FontSize="13"
+                                   Foreground="#C62828" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LeakCandidateCountText" Foreground="#C62828" FontWeight="Bold"
+                                   Margin="6,0,0,0" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                        <Button x:Name="TakeLeakSnapshotButton" Content="📸 Detailed Snapshot of Suspects"
+                                Width="220" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                Click="TakeLeakSnapshotButton_Click" IsEnabled="False"
+                                ToolTip="Take a targeted full snapshot of the detected leak candidate types"/>
+                    </DockPanel>
+
+                    <!-- Detected Leaks Grid -->
+                    <DataGrid Grid.Row="4" x:Name="LeakCandidatesGrid" AutoGenerateColumns="False"
+                              IsReadOnly="True" CanUserSortColumns="True" MaxHeight="180"
+                              HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Confidence" Binding="{Binding ConfidenceText}" Width="100"/>
+                            <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" Width="*"/>
+                            <DataGridTextColumn Header="Initial Count" Binding="{Binding InitialCount}" Width="90">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Current Count" Binding="{Binding CurrentCount}" Width="100">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Growth" Binding="{Binding CountGrowth}" Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                        <Setter Property="Foreground" Value="Red"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Growth/Interval" Binding="{Binding GrowthRatePerInterval, StringFormat='+{0:0.0}'}" Width="100">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Consecutive" Binding="{Binding ConsecutiveGrowthCount}" Width="90">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+        </TabControl>
 
         <!-- Stats Header -->
-        <Grid Grid.Row="4" Margin="0,10,0,5">
+        <Grid Grid.Row="2" Margin="0,5,0,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -131,7 +207,7 @@
         </Grid>
 
         <!-- Memory Stats Display -->
-        <Grid Grid.Row="5">
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220"/>
                 <ColumnDefinition Width="*"/>
@@ -154,7 +230,12 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="2">
-                                <TextBlock Text="{Binding DisplayDate}" FontWeight="SemiBold" FontSize="12"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding ModeTag}" FontSize="10" Foreground="White"
+                                               Background="{Binding ModeTagBrush}" Padding="3,1" Margin="0,0,5,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding DisplayDate}" FontWeight="SemiBold" FontSize="12"/>
+                                </StackPanel>
                                 <TextBlock Text="{Binding DisplayProcess}" FontSize="11" Foreground="Gray"/>
                             </StackPanel>
                         </DataTemplate>
@@ -227,7 +308,7 @@
                 <TabItem x:Name="PotentialLeaksTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Potential Leaks" Foreground="Red" FontWeight="Bold"/>
+                            <TextBlock Text="Potential Leaks" Foreground="#C62828" FontWeight="Bold"/>
                             <TextBlock x:Name="PotentialLeaksCountText" Foreground="Red" FontWeight="Bold" Margin="4,0,0,0"/>
                         </StackPanel>
                     </TabItem.Header>
@@ -240,8 +321,7 @@
                               HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray"
                               MouseDoubleClick="PotentialLeaksGrid_MouseDoubleClick">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" MinWidth="120" Width="*"/>
-                                <DataGridTextColumn Header="Static" Binding="{Binding StaticText}" Width="55">
+                                <DataGridTextColumn Header="Reason" Binding="{Binding LeakReason}" Width="55">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="#7B1FA2"/>
@@ -249,14 +329,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Event" Binding="{Binding EventHandlerText}" Width="50">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#00838F"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" MinWidth="120" Width="*"/>
                                 <DataGridTextColumn Header="Size" Binding="{Binding Size, Converter={StaticResource FormatBytesConverter}}" Width="100">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -289,7 +362,7 @@
         </Grid>
 
         <!-- Status bar -->
-        <Grid Grid.Row="6">
+        <Grid Grid.Row="4">
             <StackPanel Orientation="Horizontal">
                 <!--<Button x:Name="ExportTxtButton" Grid.Column="1" Content="Export TXT" Width="90"
                  Margin="0,0,5,0" Click="ExportTxtButton_Click" IsEnabled="False"

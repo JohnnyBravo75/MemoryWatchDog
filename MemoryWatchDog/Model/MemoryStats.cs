@@ -163,9 +163,19 @@
                 $"Process Id:                        {stats.ProcessId}\n" +
                 $".NET Version:                      {stats.NETVersion}\n" +
                 $"\n" +
+                $"Working Set:                       {CommonUtil.FormatBytes(stats.WorkingSet)}\n" +
+                $"Private Bytes:                     {CommonUtil.FormatBytes(stats.PrivateBytes)}\n" +
+                $"\n" +
                 $"Total Heap Size:                   {CommonUtil.FormatBytes(stats.TotalSize)}\n" +
                 $"Total Collected Object Size:       {CommonUtil.FormatBytes(stats.TotalCollectedObjectSize)}\n" +
                 $"Total Excluded Size:               {CommonUtil.FormatBytes(stats.TotalSize - stats.TotalCollectedObjectSize)}\n" +
+                $"\n" +
+                $"GC Heap Size:                      {CommonUtil.FormatBytes(stats.GCHeapSize)}\n" +
+                $"Gen 0 Size:                        {CommonUtil.FormatBytes(stats.Gen0Size)}\n" +
+                $"Gen 1 Size:                        {CommonUtil.FormatBytes(stats.Gen1Size)}\n" +
+                $"Gen 2 Size:                        {CommonUtil.FormatBytes(stats.Gen2Size)}\n" +
+                $"LOH Size:                          {CommonUtil.FormatBytes(stats.LOHSize)}\n" +
+                $"POH Size:                          {CommonUtil.FormatBytes(stats.POHSize)}\n" +
                 $"\n" +
                 $"Threads Count:                     {stats.Threads.Count}\n" +
                 $"Active Worker Threads:             {stats.ActiveWorkerThreads}\n" +

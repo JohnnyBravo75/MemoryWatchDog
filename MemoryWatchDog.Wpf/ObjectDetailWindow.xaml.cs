@@ -65,11 +65,13 @@ namespace MemoryWatchDogApp
         private void ObjectDetailWindow_Closed(object? sender, EventArgs e)
         {
             this.Closed -= this.ObjectDetailWindow_Closed;
+
             this.memoryStats = null;
             this.addressLookup = null;
             this.allDisplayItems = null;
             this.currentSelectedObject = null;
             this.typeInfo = null;
+
             this.Owner = null;
         }
 

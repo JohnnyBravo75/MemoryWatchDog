@@ -34,6 +34,7 @@ namespace MemoryWatchDogApp
         {
             this.Closed -= this.ProcessSelectionDialog_Closed;
             this.allProcesses.Clear();
+            this.processView = null;
             this.Owner = null;
         }
 

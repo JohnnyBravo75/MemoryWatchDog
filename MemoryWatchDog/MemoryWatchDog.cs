@@ -331,6 +331,13 @@
 
                             memoryStats.TotalSize += (long)obj.Size;
 
+                            // Filter by exact type names (for targeted leak snapshots)
+                            if (memoryStatsFilter.IncludeTypeNames?.Count > 0 &&
+                                !memoryStatsFilter.IncludeTypeNames.Contains(typeName))
+                            {
+                                continue;
+                            }
+
                             // Filtern nach Namespace   
                             if (memoryStatsFilter.ExcludeNameSpaces?.Count > 0 &&
                                 memoryStatsFilter.IsInNamespace(typeNamespace, memoryStatsFilter.ExcludeNameSpaces))
