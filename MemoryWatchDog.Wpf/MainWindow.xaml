@@ -64,7 +64,7 @@
                                   ToolTip="Aggregate heap objects by type name (faster and uses less memory. For a detailed view, uncheck this option)"/>
                         <CheckBox x:Name="CaptureDisplayValuesCheckBox" Grid.Column="2" Margin="0,0,10,0"
                                   Content="Capture Display Values" VerticalAlignment="Center"
-                                  IsChecked="True"
+                                  IsChecked="False"
                                   ToolTip="Capture display values for each object (can be slower for large heaps)"/>
                         <Button x:Name="AttachButton" Grid.Column="3" Content="Get Memory Snapshot" Width="150"
                                 Click="AttachButton_Click" IsEnabled="False"/>
@@ -323,7 +323,7 @@
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Potential Leaks" Foreground="#C62828" FontWeight="Bold"/>
-                            <TextBlock x:Name="PotentialLeaksCountText" Foreground="Red" FontWeight="Bold" Margin="4,0,0,0"/>
+                            <TextBlock x:Name="PotentialLeaksCountText" Foreground="#C62828" FontWeight="Bold" Margin="4,0,0,0"/>
                         </StackPanel>
                     </TabItem.Header>
                     <DockPanel>
@@ -338,7 +338,7 @@
                                 <DataGridTextColumn Header="Reason" Binding="{Binding LeakReason}" Width="55">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#7B1FA2"/>
+                                            <Setter Property="Foreground" Value="#C62828"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>

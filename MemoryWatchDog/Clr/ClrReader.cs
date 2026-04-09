@@ -123,6 +123,11 @@
                 return false;
             }
 
+            if (string.IsNullOrEmpty(type.Name))
+            {
+                return false;
+            }
+
             foreach (var systemNamespace in systemNamespaces)
             {
                 if (type.Name.StartsWith(systemNamespace))

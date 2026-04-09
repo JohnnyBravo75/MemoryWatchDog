@@ -114,11 +114,14 @@
 
             try
             {
+                this.CaptureProgressText.Text = "Running GC...";
+                this.OverviewText.Text = "Running Garbage Collector, please wait...";
+
                 // clean up myself
                 watchDog.ForceGC();
 
                 // clean up target
-                watchDog.ForceRemoteGC(selectedProcess.Id);
+                await Task.Run(() => watchDog.ForceRemoteGC(selectedProcess.Id));
 
                 // Filter
                 var excludeSystemNs = this.ExcludeSystemNamespacesCheckBox.IsChecked == true;
@@ -130,6 +133,8 @@
                     AggregateObjects = (this.AggregateObjectsCheckBox.IsChecked == true),
                     CaptureDisplayValues = (this.CaptureDisplayValuesCheckBox.IsChecked == true)
                 };
+
+                this.OverviewText.Text = "Loading memory statistics, please wait...";
 
                 // Capture the stats
                 var stats = await Task.Run(() =>
@@ -444,6 +449,11 @@
             this.AutoWarmupTextBox.IsEnabled = false;
             this.AutoMinGrowthTextBox.IsEnabled = false;
 
+            if (this.autoWatchTimer != null)
+            {
+                this.autoWatchTimer.Tick -= this.AutoWatchTimer_Tick;
+            }
+
             this.autoWatchTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(settings.SnapshotIntervalSeconds)
@@ -738,6 +748,11 @@
             var itemA = (SnapshotItem)selectedItems[0]!;
             var itemB = (SnapshotItem)selectedItems[1]!;
 
+            this.CompareSnapshots(itemA, itemB);
+        }
+
+        private void CompareSnapshots(SnapshotItem itemA, SnapshotItem itemB)
+        {
             // Ensure older snapshot is A, newer is B
             MemoryStats statsA, statsB;
             if (itemA.Stats.CaptureDate <= itemB.Stats.CaptureDate)
@@ -758,22 +773,27 @@
 
         private void RemoveSnapshotButton_Click(object sender, RoutedEventArgs e)
         {
-            if (this.SnapshotsListBox.SelectedItem is SnapshotItem item)
+            if (this.SnapshotsListBox.SelectedItem is SnapshotItem snapshotItem)
             {
-                int index = this.snapshots.IndexOf(item);
-                item.Stats?.Clear();
-                item.Stats = null;
-                this.snapshots.Remove(item);
+                this.RemoveSnapshot(snapshotItem);
+            }
+        }
 
-                if (this.snapshots.Count > 0)
-                {
-                    this.SnapshotsListBox.SelectedIndex = Math.Min(index, this.snapshots.Count - 1);
-                }
-                else
-                {
-                    this.DisplayMemoryStats(null!);
-                    this.RemoveSnapshotButton.IsEnabled = false;
-                }
+        private void RemoveSnapshot(SnapshotItem item)
+        {
+            int index = this.snapshots.IndexOf(item);
+            item.Stats?.Clear();
+            item.Stats = null;
+            this.snapshots.Remove(item);
+
+            if (this.snapshots.Count > 0)
+            {
+                this.SnapshotsListBox.SelectedIndex = Math.Min(index, this.snapshots.Count - 1);
+            }
+            else
+            {
+                this.DisplayMemoryStats(null!);
+                this.RemoveSnapshotButton.IsEnabled = false;
             }
         }
 
