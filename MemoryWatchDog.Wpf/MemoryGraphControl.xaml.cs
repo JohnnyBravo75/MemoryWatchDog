@@ -19,8 +19,8 @@ namespace MemoryWatchDogApp
 
         private static readonly SeriesInfo[] AllSeries = new[]
         {
-            new SeriesInfo("Working Set", Colors.DodgerBlue),
-            new SeriesInfo("Private Bytes", Colors.Teal),
+           // new SeriesInfo("Working Set", Colors.DodgerBlue),
+            new SeriesInfo("Memory", Colors.Teal),
             new SeriesInfo("GC Heap", Colors.Red),
             new SeriesInfo("Gen 0", Colors.LimeGreen),
             new SeriesInfo("Gen 1", Colors.Orange),
@@ -28,6 +28,21 @@ namespace MemoryWatchDogApp
             new SeriesInfo("LOH", Colors.Magenta),
             new SeriesInfo("POH", Colors.SaddleBrown),
         };
+
+        private static long[] GetValues(MemoryStats s)
+        {
+            return new long[]
+            {
+             //   s.WorkingSet,
+                s.PrivateBytes,
+                s.GCHeapSize,
+                s.Gen0Size,
+                s.Gen1Size,
+                s.Gen2Size,
+                s.LOHSize,
+                s.POHSize,
+            };
+        }
 
         public MemoryGraphControl()
         {
@@ -131,20 +146,7 @@ namespace MemoryWatchDogApp
             }
         }
 
-        private static long[] GetValues(MemoryStats s)
-        {
-            return new long[]
-            {
-                s.WorkingSet,
-                s.PrivateBytes,
-                s.GCHeapSize,
-                s.Gen0Size,
-                s.Gen1Size,
-                s.Gen2Size,
-                s.LOHSize,
-                s.POHSize,
-            };
-        }
+
 
         private void DrawGridLines(double w, double h, long maxVal)
         {

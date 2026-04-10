@@ -51,7 +51,8 @@
                 this.selectedProcess = dialog.SelectedProcess;
                 dialog.SelectedProcess = null;
                 this.SelectedProcessText.Text = $"{this.selectedProcess.ProcessName}  (PID {this.selectedProcess.Id})";
-                this.AttachButton.IsEnabled = true;
+
+                this.ManuallSnaphotButton.IsEnabled = true;
                 this.ForceGCButton.IsEnabled = true;
                 this.StartAutoWatchButton.IsEnabled = true;
             }
@@ -76,7 +77,7 @@
             return false;
         }
 
-        private async void AttachButton_Click(object sender, RoutedEventArgs e)
+        private async void ManuallSnaphotButton_Click(object sender, RoutedEventArgs e)
         {
             if (this.selectedProcess == null)
             {
@@ -85,7 +86,7 @@
 
             var selectedProcess = this.selectedProcess;
 
-            this.AttachButton.IsEnabled = false;
+            this.ManuallSnaphotButton.IsEnabled = false;
             this.SelectProcessButton.IsEnabled = false;
             //this.ExportTxtButton.IsEnabled = false;
             this.ExportJsonButton.IsEnabled = false;
@@ -163,7 +164,7 @@
             }
             finally
             {
-                this.AttachButton.IsEnabled = this.selectedProcess != null;
+                this.ManuallSnaphotButton.IsEnabled = this.selectedProcess != null;
                 this.SelectProcessButton.IsEnabled = true;
                 this.CancelButton.IsEnabled = false;
                 this.CaptureProgressPanel.Visibility = Visibility.Collapsed;
@@ -439,7 +440,7 @@
 
             this.StartAutoWatchButton.IsEnabled = false;
             this.StopAutoWatchButton.IsEnabled = true;
-            this.AttachButton.IsEnabled = false;
+            this.ManuallSnaphotButton.IsEnabled = false;
             this.SelectProcessButton.IsEnabled = false;
             this.AutoWatchStatusText.Text = $"Starting watch on {this.selectedProcess.ProcessName} (PID {this.selectedProcess.Id})...";
 
@@ -560,7 +561,7 @@
             catch
             {
                 this.StopAutoWatch();
-                this.AutoWatchStatusText.Text = "Process exited or became unavailable.";
+                this.AutoWatchStatusText.Text = $"Process (PID {selectedProcess.Id}) exited or became unavailable.";
             }
             finally
             {
@@ -581,7 +582,7 @@
 
             this.StartAutoWatchButton.IsEnabled = this.selectedProcess != null;
             this.StopAutoWatchButton.IsEnabled = false;
-            this.AttachButton.IsEnabled = this.selectedProcess != null;
+            this.ManuallSnaphotButton.IsEnabled = this.selectedProcess != null;
             this.SelectProcessButton.IsEnabled = true;
 
             // Re-enable settings editing
@@ -860,5 +861,14 @@
             }
         }
 
+        private void SnapshotsListBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (this.currentStats == null
+                && this.SnapshotsListBox.SelectedItem is SnapshotItem item
+                && item.Stats != null)
+            {
+                this.DisplayMemoryStats(item.Stats);
+            }
+        }
     }
 }

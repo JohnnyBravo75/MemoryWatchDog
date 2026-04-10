@@ -36,8 +36,10 @@
                     Width="120" Click="SelectProcessButton_Click"
                     ToolTip="Open dialog to select a process"/>
             <TextBlock x:Name="SelectedProcessText" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
-                       Margin="10,0,0,0" FontSize="14" Foreground="Blue"
+                       Margin="10,0,0,0" FontSize="14" Foreground="Blue" 
                        Text="No process selected"/>
+
+
         </Grid>
 
         <!-- Mode TabControl -->
@@ -46,7 +48,7 @@
             <!-- ==================== Manual Capture Tab ==================== -->
             <TabItem Header="📷 Manual Capture" x:Name="ManualModeTab">
                 <StackPanel Margin="8">
-                    <Grid Margin="0,0,0,5">
+                    <Grid Margin="0,0,0,5" MinHeight="50">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
@@ -54,6 +56,10 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
                         <CheckBox x:Name="ExcludeSystemNamespacesCheckBox" Grid.Column="0" Margin="0,0,10,0"
                                   Content="Exclude System Namespaces" VerticalAlignment="Center"
                                   IsChecked="True"
@@ -66,11 +72,11 @@
                                   Content="Capture Display Values" VerticalAlignment="Center"
                                   IsChecked="False"
                                   ToolTip="Capture display values for each object (can be slower for large heaps)"/>
-                        <Button x:Name="AttachButton" Grid.Column="3" Content="Get Memory Snapshot" Width="150"
-                                Click="AttachButton_Click" IsEnabled="False"/>
+                        <Button x:Name="ManuallSnaphotButton" Grid.Column="3" Content="📷 Get Snapshot" Width="150"
+                                Click="ManuallSnaphotButton_Click" IsEnabled="False"/>
                         <Button x:Name="ForceGCButton" Grid.Column="4" Content="Force GC" Width="80"
-                                Margin="5,0,0,0" Click="ForceGCButton_Click" IsEnabled="False"
-                                ToolTip="Force garbage collection on the attached process"/>
+                                    Margin="5,0,0,0" Click="ForceGCButton_Click" IsEnabled="False" HorizontalAlignment="Right"
+                                    ToolTip="Force garbage collection on the attached process"/>
                     </Grid>
                     <StackPanel x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
                         <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
@@ -239,8 +245,8 @@
                             ToolTip="Remove the selected snapshot from the list"/>
                 </StackPanel>
                 <ListBox x:Name="SnapshotsListBox" SelectionMode="Extended"
-                         SelectionChanged="SnapshotsListBox_SelectionChanged"
-                         HorizontalContentAlignment="Stretch">
+                         SelectionChanged="SnapshotsListBox_SelectionChanged" 
+                         PreviewMouseLeftButtonDown="SnapshotsListBox_PreviewMouseLeftButtonDown" HorizontalContentAlignment="Stretch">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="2">
@@ -263,7 +269,7 @@
                         <StackPanel Margin="10">
                             <TextBlock x:Name="OverviewText" TextWrapping="Wrap"
                                    FontFamily="Consolas" FontSize="13"
-                                   Text="Select a process and click 'Get Memory Stats' to view statistics."/>
+                                   Text=""/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
