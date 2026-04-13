@@ -15,6 +15,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -78,14 +79,6 @@
                                     Margin="5,0,0,0" Click="ForceGCButton_Click" IsEnabled="False" HorizontalAlignment="Right"
                                     ToolTip="Force garbage collection on the attached process"/>
                     </Grid>
-                    <StackPanel x:Name="CaptureProgressPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
-                        <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
-                                   Text="Objects: 0 | Types: 0" Foreground="DarkBlue"/>
-                        <ProgressBar x:Name="CaptureProgressBar" Width="200" Height="16" IsIndeterminate="True"/>
-                        <Button x:Name="CancelButton" Content="Cancel" Width="60"
-                            Margin="5,0,0,0" Click="CancelButton_Click" IsEnabled="False"
-                            ToolTip="Cancel the running capture"/>
-                    </StackPanel>
                 </StackPanel>
             </TabItem>
 
@@ -105,7 +98,7 @@
                         <TextBlock Text="Interval (sec):" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <TextBox x:Name="AutoIntervalTextBox" Width="50" Text="60" VerticalAlignment="Center"
                                  ToolTip="Seconds between each lightweight snapshot (10–600)"/>
-                        <TextBlock Text="Max Snapshots:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                        <TextBlock Text="Max Snapshots to keep:" VerticalAlignment="Center" Margin="15,0,5,0"/>
                         <TextBox x:Name="AutoMaxSnapshotsTextBox" Width="50" Text="20" VerticalAlignment="Center"
                                  ToolTip="Maximum number of snapshots to keep in the rolling window (5–100)"/>
                         <TextBlock Text="Warmup:" VerticalAlignment="Center" Margin="15,0,5,0"/>
@@ -115,7 +108,7 @@
                         <TextBox x:Name="AutoMinGrowthTextBox" Width="50" Text="5" VerticalAlignment="Center"
                                  ToolTip="Minimum consecutive growths to flag a type as leak candidate"/>
                         <CheckBox x:Name="AutoForceGCCheckBox" Margin="15,0,0,0" Content="Force GC" VerticalAlignment="Center"
-                                  IsChecked="True" ToolTip="Force garbage collection on the target before each snapshot to reduce false positives"/>
+                                  IsChecked="False" ToolTip="Force garbage collection on the target before each snapshot to reduce false positives"/>
                     </StackPanel>
 
                     <!-- Controls Row -->
@@ -211,8 +204,18 @@
             </TabItem>
         </TabControl>
 
+        <!-- Capture Progress (shared between Manual and Auto modes) -->
+        <StackPanel x:Name="CaptureProgressPanel" Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
+            <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
+                       Text="Objects: 0 | Types: 0" Foreground="DarkBlue"/>
+            <ProgressBar x:Name="CaptureProgressBar" Width="200" Height="16" IsIndeterminate="True"/>
+            <Button x:Name="CancelButton" Content="Cancel" Width="60"
+                Margin="5,0,0,0" Click="CancelButton_Click" IsEnabled="False"
+                ToolTip="Cancel the running capture"/>
+        </StackPanel>
+
         <!-- Stats Header -->
-        <Grid Grid.Row="2" Margin="0,5,0,5">
+        <Grid Grid.Row="3" Margin="0,5,0,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -227,7 +230,7 @@
         </Grid>
 
         <!-- Memory Stats Display -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220"/>
                 <ColumnDefinition Width="*"/>
@@ -382,7 +385,7 @@
         </Grid>
 
         <!-- Status bar -->
-        <Grid Grid.Row="4">
+        <Grid Grid.Row="5">
             <StackPanel Orientation="Horizontal">
                 <!--<Button x:Name="ExportTxtButton" Grid.Column="1" Content="Export TXT" Width="90"
                  Margin="0,0,5,0" Click="ExportTxtButton_Click" IsEnabled="False"

@@ -154,6 +154,11 @@ namespace MemoryWatchDogApp
             this.OpenDetailWindow(this.statsB, "New");
         }
 
+        private void ComparisonGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            this.OpenDetailWindow(this.statsB, "New");
+        }
+
         private void OpenDetailWindow(MemoryStats stats, string label = "")
         {
             if (this.ComparisonGrid.SelectedItem is not ComparisonRow row)

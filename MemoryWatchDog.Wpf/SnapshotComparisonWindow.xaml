@@ -38,7 +38,8 @@
     <!-- Comparison DataGrid -->
     <DataGrid Grid.Row="2" x:Name="ComparisonGrid" AutoGenerateColumns="False"
               IsReadOnly="True" CanUserSortColumns="True"
-              HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray">
+              HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray"
+              MouseDoubleClick="ComparisonGrid_MouseDoubleClick">
       <DataGrid.Columns>
         <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" Width="*"/>
         <DataGridTextColumn Header="Count (Old)" Binding="{Binding CountA}" Width="85"

@@ -20,7 +20,7 @@ namespace MemoryWatchDogApp
         private static readonly SeriesInfo[] AllSeries = new[]
         {
            // new SeriesInfo("Working Set", Colors.DodgerBlue),
-            new SeriesInfo("Memory", Colors.Teal),
+            new SeriesInfo("Total memory", Colors.Teal),
             new SeriesInfo("GC Heap", Colors.Red),
             new SeriesInfo("Gen 0", Colors.LimeGreen),
             new SeriesInfo("Gen 1", Colors.Orange),

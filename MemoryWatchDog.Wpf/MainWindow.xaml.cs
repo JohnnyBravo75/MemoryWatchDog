@@ -478,6 +478,8 @@
             int processId = this.selectedProcess.Id;
             var settings = this.ReadAutoModeSettings();
 
+            var stopwatch = Stopwatch.StartNew();
+
             try
             {
                 // Force GC before snapshot to reduce false positives (#3)
@@ -505,6 +507,8 @@
 
                 var snapshot = await Task.Run(() => watchDog.GetMemoryStats(filter, processId));
 
+                stopwatch.Stop();
+
                 if (!this.isAutoWatching)
                 {
                     return;
@@ -525,9 +529,31 @@
                     ? $"Warming up ({this.autoSnapshots.Count}/{settings.WarmupSnapshotCount})"
                     : "Analyzing";
 
+                string durationText = stopwatch.Elapsed.TotalSeconds >= 60
+                    ? $"{stopwatch.Elapsed.TotalMinutes:0.0} min"
+                    : $"{stopwatch.Elapsed.TotalSeconds:0.0}s";
+
+                // Auto-increase interval when snapshot takes too long (>= 80% of interval)
+                string intervalAdjusted = string.Empty;
+                if (stopwatch.Elapsed.TotalSeconds >= settings.SnapshotIntervalSeconds * 0.8)
+                {
+                    int newInterval = Math.Min((int)(stopwatch.Elapsed.TotalSeconds * 2), 600);
+                    if (newInterval > settings.SnapshotIntervalSeconds)
+                    {
+                        this.AutoIntervalTextBox.Text = newInterval.ToString();
+                        if (this.autoWatchTimer != null)
+                        {
+                            this.autoWatchTimer.Interval = TimeSpan.FromSeconds(newInterval);
+                        }
+
+                        intervalAdjusted = $" — ⚠️ interval auto-increased to {newInterval}s";
+                    }
+                }
+
                 this.AutoWatchStatusText.Text =
                     $"{phase} — {this.selectedProcess?.ProcessName} (PID {processId}) — " +
-                    $"Snapshot #{this.autoSnapshotCount} — {snapshot.CaptureDate.ToLocalTime():HH:mm:ss}";
+                    $"Snapshot #{this.autoSnapshotCount} — {snapshot.CaptureDate.ToLocalTime():HH:mm:ss} — " +
+                    $"took {durationText}{intervalAdjusted}";
 
                 // Run analysis if past warmup and not in cooldown
                 if (!isWarmingUp)
@@ -612,9 +638,25 @@
 
             this.AutoWatchStatusText.Text += " — Taking detailed snapshot of suspects...";
 
+            this.CaptureProgressText.Text = "Capturing suspects...";
+            this.CaptureProgressPanel.Visibility = Visibility.Visible;
+            this.CancelButton.IsEnabled = true;
+
+            this.captureCts = new CancellationTokenSource();
+            var cancellationToken = this.captureCts.Token;
+
             try
             {
                 using var watchDog = new MemoryWatchDog();
+
+                watchDog.CaptureProgress += (s, args) =>
+                {
+                    this.Dispatcher.BeginInvoke(() =>
+                    {
+                        this.CaptureProgressText.Text = $"Objects: {args.ObjectsProcessed} | Types: {args.TypesFound}";
+                    });
+                };
+
                 var filter = new MemoryStatsFilter
                 {
                     CaputureObjects = true,
@@ -625,7 +667,7 @@
                     ExcludeNameSpaces = new List<string>()
                 };
 
-                var stats = await Task.Run(() => watchDog.GetMemoryStats(filter, processId));
+                var stats = await Task.Run(() => watchDog.GetMemoryStats(filter, processId, cancellationToken));
 
                 if (stats != null)
                 {
@@ -643,6 +685,10 @@
                     this.cooldownRemaining = settings.CooldownIntervalsAfterCapture;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                this.AutoWatchStatusText.Text = "Detailed snapshot was cancelled.";
+            }
             catch (Exception ex)
             {
                 this.AutoWatchStatusText.Text = $"Failed to take detailed snapshot: {ex.Message}";
@@ -651,6 +697,11 @@
             {
                 this.isTakingLeakSnapshot = false;
                 this.TakeLeakSnapshotButton.IsEnabled = this.currentLeakCandidates.Count > 0;
+                this.CancelButton.IsEnabled = false;
+                this.CaptureProgressPanel.Visibility = Visibility.Collapsed;
+
+                this.captureCts?.Dispose();
+                this.captureCts = null;
             }
         }
 
