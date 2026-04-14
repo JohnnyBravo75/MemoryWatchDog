@@ -19,7 +19,9 @@ namespace MemoryWatchDogApp
             var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright;
             var company = assembly.GetCustomAttribute<AssemblyCompanyAttribute>()?.Company;
 
-            this.VersionText.Text = $"Version {version}";
+            string arch = Environment.Is64BitProcess ? "x64" : "x86";
+            this.Title = $"About .NET MemorySpy ({arch})";
+            this.VersionText.Text = $"Version {version}  ({arch})";
             this.CopyrightText.Text = copyright ?? string.Empty;
             this.CompanyText.Text = company ?? string.Empty;
         }

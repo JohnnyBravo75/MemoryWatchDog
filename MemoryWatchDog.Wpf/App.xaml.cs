@@ -7,8 +7,16 @@
     /// </summary>
     public partial class App : Application
     {
+        /// <summary>
+        /// When set, the app was launched with -attach &lt;pid&gt; and should
+        /// automatically attach to this process on startup.
+        /// </summary>
+        public static int? AutoAttachProcessId { get; private set; }
+
         public App()
         {
+            ParseCommandLineArgs();
+
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
                 OnUnhandledException((Exception)e.ExceptionObject, "AppDomain.CurrentDomain.UnhandledException");
@@ -25,6 +33,20 @@
                 OnUnhandledException(e.Exception, "TaskScheduler.UnobservedTaskException");
                 e.SetObserved();
             };
+        }
+
+        private static void ParseCommandLineArgs()
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (int i = 1; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], "-attach", StringComparison.OrdinalIgnoreCase)
+                    && int.TryParse(args[i + 1], out int pid))
+                {
+                    AutoAttachProcessId = pid;
+                    break;
+                }
+            }
         }
 
         private void OnUnhandledException(Exception exception, string source)

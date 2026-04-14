@@ -3,6 +3,7 @@
     using System.Collections.ObjectModel;
     using System.ComponentModel;
     using System.Diagnostics;
+    using System.IO;
     using System.Threading;
     using System.Windows;
     using System.Windows.Controls;
@@ -41,6 +42,49 @@
         {
             this.InitializeComponent();
             this.SnapshotsListBox.ItemsSource = this.snapshots;
+            this.Title = $".NET MemorySpy ({ArchLabel})";
+            this.ContentRendered += this.MainWindow_ContentRendered;
+        }
+
+        private static string ArchLabel => Environment.Is64BitProcess ? "x64" : "x86";
+
+        private async void MainWindow_ContentRendered(object? sender, EventArgs e)
+        {
+            this.ContentRendered -= this.MainWindow_ContentRendered;
+
+            if (App.AutoAttachProcessId is int pid)
+            {
+                await this.AutoAttachToProcess(pid);
+            }
+        }
+
+        private async Task AutoAttachToProcess(int processId)
+        {
+            try
+            {
+                var process = Process.GetProcessById(processId);
+                this.selectedProcess = new ProcessInfo
+                {
+                    Id = process.Id,
+                    ProcessName = process.ProcessName,
+                    MemoryMB = Math.Round(process.WorkingSet64 / 1024.0 / 1024.0, 1),
+                    MainWindowTitle = process.MainWindowTitle
+                };
+
+                this.SelectedProcessText.Text = $"{this.selectedProcess.ProcessName}  (PID {this.selectedProcess.Id})";
+                this.ManualSnaphotButton.IsEnabled = true;
+                this.ForceGCButton.IsEnabled = true;
+                this.StartAutoWatchButton.IsEnabled = true;
+
+                this.StatusText.Text = $"Auto-attached to {this.selectedProcess.ProcessName} (PID {processId})";
+
+                // Automatically trigger a snapshot capture
+                this.ManualSnaphotButton_Click(this, new RoutedEventArgs());
+            }
+            catch (Exception ex)
+            {
+                this.StatusText.Text = $"Auto-attach failed: {ex.Message}";
+            }
         }
 
         private void SelectProcessButton_Click(object sender, RoutedEventArgs e)
@@ -180,6 +224,10 @@
             {
                 this.OverviewText.Text = "Capture was cancelled.";
                 this.StatusText.Text = "Cancelled";
+            }
+            catch (ArchitectureMismatchException archEx)
+            {
+                this.HandleArchitectureMismatch(archEx);
             }
             catch (Exception ex)
             {
@@ -669,6 +717,11 @@
                     }
                 }
             }
+            catch (ArchitectureMismatchException archEx)
+            {
+                this.StopAutoWatch();
+                this.HandleArchitectureMismatch(archEx);
+            }
             catch
             {
                 this.StopAutoWatch();
@@ -781,6 +834,11 @@
             {
                 this.AutoWatchStatusText.Text = "Detailed snapshot was cancelled.";
             }
+            catch (ArchitectureMismatchException archEx)
+            {
+                this.StopAutoWatch();
+                this.HandleArchitectureMismatch(archEx);
+            }
             catch (Exception ex)
             {
                 this.AutoWatchStatusText.Text = $"Failed to take detailed snapshot: {ex.Message}";
@@ -852,6 +910,37 @@
             var detailWindow = new ObjectDetailWindow(syntheticType, this.currentStats);
             detailWindow.Owner = this;
             detailWindow.Show();
+        }
+
+        private void HandleArchitectureMismatch(ArchitectureMismatchException archEx)
+        {
+            string siblingExe = ArchitectureHelper.FindSiblingExe(archEx.RequiredArch);
+
+            if (siblingExe != null)
+            {
+                this.OverviewText.Text =
+                    $"Architecture mismatch detected: this process is {archEx.SelfArch}, " +
+                    $"target '{archEx.TargetProcessName}' is {archEx.TargetArch}.\n\n" +
+                    $"Relaunching as {archEx.RequiredArch}...";
+                this.StatusText.Text = $"Relaunching as {archEx.RequiredArch}...";
+
+                if (ArchitectureHelper.TryRelaunchForArchitecture(archEx))
+                {
+                    Application.Current.Shutdown();
+                    return;
+                }
+            }
+
+            // Sibling not found — show manual instructions
+            this.OverviewText.Text =
+                $"Architecture mismatch: this process is {archEx.SelfArch}, but the target " +
+                $"'{archEx.TargetProcessName}' (PID {archEx.TargetProcessId}) is {archEx.TargetArch}.\n\n" +
+                $"ClrMD requires both processes to have the same architecture.\n\n" +
+                $"To fix this, publish and deploy both architectures side by side:\n" +
+                $"  install-dir\\x64\\MemoryWatchDog.Wpf.exe\n" +
+                $"  install-dir\\x86\\MemoryWatchDog.Wpf.exe\n\n" +
+                $"The app will then automatically relaunch the correct version.";
+            this.StatusText.Text = "Architecture mismatch — see details above";
         }
 
         protected override void OnClosed(EventArgs e)

@@ -410,17 +410,11 @@
 
                 if (selfIs64 != targetIs64)
                 {
-                    string selfArch = selfIs64 ? "x64" : "x86";
-                    string targetArch = targetIs64 ? "x64" : "x86";
-
-                    throw new InvalidOperationException(
-                        $"Architecture mismatch: MemoryWatchDog is running as {selfArch} but the target process " +
-                        $"'{targetProcess.ProcessName}' (pid={processId}) is {targetArch}. " +
-                        $"ClrMD requires both processes to have the same architecture. " +
-                        $"Please run the {targetArch} version of MemoryWatchDog to attach to this process.");
+                    throw new ArchitectureMismatchException(
+                        processId, targetProcess.ProcessName, selfIs64, targetIs64);
                 }
             }
-            catch (InvalidOperationException)
+            catch (ArchitectureMismatchException)
             {
                 throw;
             }
