@@ -12,10 +12,18 @@ namespace MemoryWatchDogApp
 
     public partial class MemoryGraphControl : UserControl
     {
-        private const int MaxPoints = 150;
+        private const int MaxPoints = 300;
 
-        private readonly List<MemoryStats> snapshots = new List<MemoryStats>();
+        private readonly List<GraphPoint> graphPoints = new List<GraphPoint>();
         private readonly ObservableCollection<LegendItem> legendItems = new ObservableCollection<LegendItem>();
+
+        // Last known GC detail values, carried forward between full snapshots
+        private long lastGCHeapSize;
+        private long lastGen0Size;
+        private long lastGen1Size;
+        private long lastGen2Size;
+        private long lastLOHSize;
+        private long lastPOHSize;
 
         private static readonly SeriesInfo[] AllSeries = new[]
         {
@@ -29,18 +37,17 @@ namespace MemoryWatchDogApp
             new SeriesInfo("POH", Colors.SaddleBrown),
         };
 
-        private static long[] GetValues(MemoryStats s)
+        private static long[] GetValues(GraphPoint p)
         {
             return new long[]
             {
-             //   s.WorkingSet,
-                s.PrivateBytes,
-                s.GCHeapSize,
-                s.Gen0Size,
-                s.Gen1Size,
-                s.Gen2Size,
-                s.LOHSize,
-                s.POHSize,
+                p.TotalMemory,
+                p.GCHeapSize,
+                p.Gen0Size,
+                p.Gen1Size,
+                p.Gen2Size,
+                p.LOHSize,
+                p.POHSize,
             };
         }
 
@@ -62,7 +69,13 @@ namespace MemoryWatchDogApp
 
         public void Clear()
         {
-            this.snapshots.Clear();
+            this.graphPoints.Clear();
+            this.lastGCHeapSize = 0;
+            this.lastGen0Size = 0;
+            this.lastGen1Size = 0;
+            this.lastGen2Size = 0;
+            this.lastLOHSize = 0;
+            this.lastPOHSize = 0;
             this.GraphCanvas.Children.Clear();
 
             for (int i = 0; i < AllSeries.Length; i++)
@@ -71,12 +84,59 @@ namespace MemoryWatchDogApp
             }
         }
 
+        /// <summary>
+        /// Adds a lightweight data point using only the total memory value.
+        /// GC detail series carry forward their last known values.
+        /// Call this frequently (e.g. every 1-2 seconds) for a flowing graph.
+        /// </summary>
+        public void AddLightweightPoint(long totalMemory)
+        {
+            var point = new GraphPoint
+            {
+                TotalMemory = totalMemory,
+                GCHeapSize = this.lastGCHeapSize,
+                Gen0Size = this.lastGen0Size,
+                Gen1Size = this.lastGen1Size,
+                Gen2Size = this.lastGen2Size,
+                LOHSize = this.lastLOHSize,
+                POHSize = this.lastPOHSize,
+            };
+
+            this.AddGraphPoint(point);
+        }
+
+        /// <summary>
+        /// Adds a full data point from a CLR snapshot, updating all GC detail series.
+        /// </summary>
         public void AddSnapshot(MemoryStats snapshot)
         {
-            this.snapshots.Add(snapshot);
-            if (this.snapshots.Count > MaxPoints)
+            this.lastGCHeapSize = snapshot.GCHeapSize;
+            this.lastGen0Size = snapshot.Gen0Size;
+            this.lastGen1Size = snapshot.Gen1Size;
+            this.lastGen2Size = snapshot.Gen2Size;
+            this.lastLOHSize = snapshot.LOHSize;
+            this.lastPOHSize = snapshot.POHSize;
+
+            var point = new GraphPoint
             {
-                this.snapshots.RemoveAt(0);
+                TotalMemory = snapshot.PrivateBytes,
+                GCHeapSize = snapshot.GCHeapSize,
+                Gen0Size = snapshot.Gen0Size,
+                Gen1Size = snapshot.Gen1Size,
+                Gen2Size = snapshot.Gen2Size,
+                LOHSize = snapshot.LOHSize,
+                POHSize = snapshot.POHSize,
+            };
+
+            this.AddGraphPoint(point);
+        }
+
+        private void AddGraphPoint(GraphPoint point)
+        {
+            this.graphPoints.Add(point);
+            if (this.graphPoints.Count > MaxPoints)
+            {
+                this.graphPoints.RemoveAt(0);
             }
 
             this.Redraw();
@@ -89,16 +149,16 @@ namespace MemoryWatchDogApp
             double w = this.GraphCanvas.ActualWidth;
             double h = this.GraphCanvas.ActualHeight;
 
-            if (w < 20 || h < 20 || this.snapshots.Count < 2)
+            if (w < 20 || h < 20 || this.graphPoints.Count < 2)
             {
                 return;
             }
 
             // Precompute all values
-            var allValues = new long[this.snapshots.Count][];
-            for (int i = 0; i < this.snapshots.Count; i++)
+            var allValues = new long[this.graphPoints.Count][];
+            for (int i = 0; i < this.graphPoints.Count; i++)
             {
-                allValues[i] = GetValues(this.snapshots[i]);
+                allValues[i] = GetValues(this.graphPoints[i]);
             }
 
             // Auto-scale Y axis
@@ -128,7 +188,7 @@ namespace MemoryWatchDogApp
                     IsHitTestVisible = false
                 };
 
-                for (int i = 0; i < this.snapshots.Count; i++)
+                for (int i = 0; i < this.graphPoints.Count; i++)
                 {
                     double x = (i / (double)(MaxPoints - 1)) * w;
                     double y = h - (allValues[i][si] / (double)maxVal) * h;
@@ -207,6 +267,17 @@ namespace MemoryWatchDogApp
         private void GraphCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             this.Redraw();
+        }
+
+        private struct GraphPoint
+        {
+            public long TotalMemory;
+            public long GCHeapSize;
+            public long Gen0Size;
+            public long Gen1Size;
+            public long Gen2Size;
+            public long LOHSize;
+            public long POHSize;
         }
 
         private class SeriesInfo

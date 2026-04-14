@@ -26,6 +26,7 @@
 
         // Auto Watch mode fields
         private DispatcherTimer? autoWatchTimer;
+        private DispatcherTimer? livePollTimer;
         private bool isAutoWatching;
         private bool isCollectingAutoSnapshot;
         private bool isTakingLeakSnapshot;
@@ -34,6 +35,7 @@
         private LeakDetector leakDetector = new LeakDetector();
         private int autoSnapshotCount;
         private int cooldownRemaining;
+        private int lastAutoWatchProcessId;
 
         public MainWindow()
         {
@@ -48,14 +50,38 @@
 
             if (dialog.ShowDialog() == true && dialog.SelectedProcess != null)
             {
+                int? previousProcessId = this.selectedProcess?.Id;
+
                 this.selectedProcess = dialog.SelectedProcess;
                 dialog.SelectedProcess = null;
                 this.SelectedProcessText.Text = $"{this.selectedProcess.ProcessName}  (PID {this.selectedProcess.Id})";
 
-                this.ManuallSnaphotButton.IsEnabled = true;
+                // Clear snapshots and UI when switching to a different process
+                if (previousProcessId != null && previousProcessId != this.selectedProcess.Id)
+                {
+                    foreach (var item in this.snapshots)
+                    {
+                        item.Stats?.Clear();
+                        item.Stats = null;
+                    }
+
+                    this.snapshots.Clear();
+                    this.DisplayMemoryStats(null!);
+                    this.RemoveSnapshotButton.IsEnabled = false;
+                    this.CompareSnapshotsButton.IsEnabled = false;
+                }
+
+                this.ManualSnaphotButton.IsEnabled = true;
                 this.ForceGCButton.IsEnabled = true;
                 this.StartAutoWatchButton.IsEnabled = true;
             }
+        }
+
+        private void AboutButton_Click(object sender, RoutedEventArgs e)
+        {
+            var aboutWindow = new AboutWindow();
+            aboutWindow.Owner = this;
+            aboutWindow.ShowDialog();
         }
 
         private void ObjectsFilterTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -77,7 +103,7 @@
             return false;
         }
 
-        private async void ManuallSnaphotButton_Click(object sender, RoutedEventArgs e)
+        private async void ManualSnaphotButton_Click(object sender, RoutedEventArgs e)
         {
             if (this.selectedProcess == null)
             {
@@ -86,7 +112,7 @@
 
             var selectedProcess = this.selectedProcess;
 
-            this.ManuallSnaphotButton.IsEnabled = false;
+            this.ManualSnaphotButton.IsEnabled = false;
             this.SelectProcessButton.IsEnabled = false;
             //this.ExportTxtButton.IsEnabled = false;
             this.ExportJsonButton.IsEnabled = false;
@@ -164,7 +190,7 @@
             }
             finally
             {
-                this.ManuallSnaphotButton.IsEnabled = this.selectedProcess != null;
+                this.ManualSnaphotButton.IsEnabled = this.selectedProcess != null;
                 this.SelectProcessButton.IsEnabled = true;
                 this.CancelButton.IsEnabled = false;
                 this.CaptureProgressPanel.Visibility = Visibility.Collapsed;
@@ -426,21 +452,48 @@
 
             var settings = this.ReadAutoModeSettings();
 
+            bool keepData = false;
+            bool isSameProcess = this.lastAutoWatchProcessId == this.selectedProcess.Id;
+
+            if (isSameProcess && this.autoSnapshots.Count > 0)
+            {
+                var result = MessageBox.Show(
+                    $"The process \"{this.selectedProcess.ProcessName}\" (PID {this.selectedProcess.Id}) was already being watched.\n\n" +
+                    $"There are {this.autoSnapshots.Count} snapshot(s) and {this.currentLeakCandidates.Count} leak candidate(s) from the previous session.\n\n" +
+                    "Do you want to keep the existing data and continue collecting?\n\n" +
+                    "Yes = Keep data and continue\nNo = Clear everything and start fresh\nCancel = Don't start",
+                    "Restart Auto Watch",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Cancel)
+                {
+                    return false;
+                }
+
+                keepData = result == MessageBoxResult.Yes;
+            }
+
+            this.lastAutoWatchProcessId = this.selectedProcess.Id;
             this.isAutoWatching = true;
-            this.autoSnapshotCount = 0;
-            this.cooldownRemaining = 0;
-            this.autoSnapshots.Clear();
-            this.currentLeakCandidates.Clear();
-            this.leakDetector.Reset();
-            this.MemoryGraph.Clear();
-            this.LeakCandidatesGrid.ItemsSource = null;
-            this.LeakCandidateCountText.Text = "";
-            this.TakeLeakSnapshotButton.IsEnabled = false;
-            this.ExportReportButton.IsEnabled = false;
+
+            if (!keepData)
+            {
+                this.autoSnapshotCount = 0;
+                this.cooldownRemaining = 0;
+                this.autoSnapshots.Clear();
+                this.currentLeakCandidates.Clear();
+                this.leakDetector.Reset();
+                this.MemoryGraph.Clear();
+                this.LeakCandidatesGrid.ItemsSource = null;
+                this.LeakCandidateCountText.Text = "";
+                this.TakeLeakSnapshotButton.IsEnabled = false;
+                this.ExportReportButton.IsEnabled = false;
+            }
 
             this.StartAutoWatchButton.IsEnabled = false;
             this.StopAutoWatchButton.IsEnabled = true;
-            this.ManuallSnaphotButton.IsEnabled = false;
+            this.ManualSnaphotButton.IsEnabled = false;
             this.SelectProcessButton.IsEnabled = false;
             this.AutoWatchStatusText.Text = $"Starting watch on {this.selectedProcess.ProcessName} (PID {this.selectedProcess.Id})...";
 
@@ -461,10 +514,42 @@
             };
             this.autoWatchTimer.Tick += this.AutoWatchTimer_Tick;
 
+            // Start lightweight live-poll timer for a flowing graph
+            if (this.livePollTimer != null)
+            {
+                this.livePollTimer.Tick -= this.LivePollTimer_Tick;
+            }
+
+            this.livePollTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            this.livePollTimer.Tick += this.LivePollTimer_Tick;
+            this.livePollTimer.Start();
+
             // Take first snapshot immediately
             this.AutoWatchTimer_Tick(this, EventArgs.Empty);
             this.autoWatchTimer.Start();
             return true;
+        }
+
+        private void LivePollTimer_Tick(object? sender, EventArgs e)
+        {
+            if (!this.isAutoWatching || this.selectedProcess == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var process = Process.GetProcessById(this.selectedProcess.Id);
+                process.Refresh();
+                this.MemoryGraph.AddLightweightPoint(process.PrivateMemorySize64);
+            }
+            catch
+            {
+                // Process may have exited — auto watch tick will handle the stop
+            }
         }
 
         private async void AutoWatchTimer_Tick(object? sender, EventArgs e)
@@ -599,6 +684,13 @@
         {
             this.isAutoWatching = false;
 
+            if (this.livePollTimer != null)
+            {
+                this.livePollTimer.Stop();
+                this.livePollTimer.Tick -= this.LivePollTimer_Tick;
+                this.livePollTimer = null;
+            }
+
             if (this.autoWatchTimer != null)
             {
                 this.autoWatchTimer.Stop();
@@ -608,7 +700,7 @@
 
             this.StartAutoWatchButton.IsEnabled = this.selectedProcess != null;
             this.StopAutoWatchButton.IsEnabled = false;
-            this.ManuallSnaphotButton.IsEnabled = this.selectedProcess != null;
+            this.ManualSnaphotButton.IsEnabled = this.selectedProcess != null;
             this.SelectProcessButton.IsEnabled = true;
 
             // Re-enable settings editing

@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:MemoryWatchDogApp"
         xmlns:converters="clr-namespace:MemoryWatchDogApp.Converters"
         mc:Ignorable="d"
-        Title=".NET MemoryWatchDog" Height="850" Width="1100" WindowStartupLocation="CenterScreen">
+        Title=".NET MemorySpy" Height="850" Width="1100" WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <converters:FormatBytesConverter x:Key="FormatBytesConverter"/>
     </Window.Resources>
@@ -20,8 +20,14 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- About Button (upper right corner) -->
+        <Button x:Name="AboutButton" Grid.Row="0" Content="ℹ" Foreground="DarkGray" FontSize="16" FontWeight="Bold"
+                Width="32" Height="32" HorizontalAlignment="Right" VerticalAlignment="Top"
+                Click="AboutButton_Click" ToolTip="About .NET MemorySpy"
+                Background="Transparent" BorderBrush="Transparent" Cursor="Hand" Padding="0,-2,0,0"/>
+
         <!-- Process Selection -->
-        <Grid Grid.Row="0" Margin="0,0,0,10">
+        <Grid Grid.Row="0" Margin="0,0,40,10">
             <Grid.RowDefinitions>
                 <RowDefinition  Height="Auto" />
                 <RowDefinition  Height="*" />
@@ -73,8 +79,8 @@
                                   Content="Capture Display Values" VerticalAlignment="Center"
                                   IsChecked="False"
                                   ToolTip="Capture display values for each object (can be slower for large heaps)"/>
-                        <Button x:Name="ManuallSnaphotButton" Grid.Column="3" Content="📷 Get Snapshot" Width="150"
-                                Click="ManuallSnaphotButton_Click" IsEnabled="False"/>
+                        <Button x:Name="ManualSnaphotButton" Grid.Column="3" Content="📷 Get Snapshot" Width="150"
+                                Click="ManualSnaphotButton_Click" IsEnabled="False"/>
                         <Button x:Name="ForceGCButton" Grid.Column="4" Content="Force GC" Width="80"
                                     Margin="5,0,0,0" Click="ForceGCButton_Click" IsEnabled="False" HorizontalAlignment="Right"
                                     ToolTip="Force garbage collection on the attached process"/>

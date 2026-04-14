@@ -5,6 +5,7 @@
     using System.Diagnostics;
     using System.Linq;
     using System.Runtime;
+    using System.Runtime.InteropServices;
     using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading;
@@ -16,12 +17,17 @@
     {
         static List<string> systemNamespaces = GetSystemNamespaces();
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool IsWow64Process(IntPtr hProcess, out bool isWow64);
+
         public static ClrRuntime AttachToClr(int? processId = null)
         {
             if (processId == null)
             {
                 processId = Process.GetCurrentProcess().Id;
             }
+
+            ValidateArchitecture(processId.Value);
 
             var dataTarget = DataTarget.AttachToProcess(processId.Value, suspend: false);
 
@@ -377,6 +383,50 @@
             catch
             {
                 return "";
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the given process is 64-bit, false if 32-bit (x86).
+        /// </summary>
+        public static bool IsProcess64Bit(Process process)
+        {
+            if (!Environment.Is64BitOperatingSystem)
+            {
+                return false;
+            }
+
+            IsWow64Process(process.Handle, out bool isWow64);
+            return !isWow64;
+        }
+
+        private static void ValidateArchitecture(int processId)
+        {
+            try
+            {
+                var targetProcess = Process.GetProcessById(processId);
+                bool selfIs64 = Environment.Is64BitProcess;
+                bool targetIs64 = IsProcess64Bit(targetProcess);
+
+                if (selfIs64 != targetIs64)
+                {
+                    string selfArch = selfIs64 ? "x64" : "x86";
+                    string targetArch = targetIs64 ? "x64" : "x86";
+
+                    throw new InvalidOperationException(
+                        $"Architecture mismatch: MemoryWatchDog is running as {selfArch} but the target process " +
+                        $"'{targetProcess.ProcessName}' (pid={processId}) is {targetArch}. " +
+                        $"ClrMD requires both processes to have the same architecture. " +
+                        $"Please run the {targetArch} version of MemoryWatchDog to attach to this process.");
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch
+            {
+                // If we can't determine architecture, let DataTarget.AttachToProcess handle it
             }
         }
 

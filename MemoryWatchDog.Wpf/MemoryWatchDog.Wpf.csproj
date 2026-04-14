@@ -7,10 +7,35 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Company>Botomatic</Company>
+    <Product>.NET MemorySpy</Product>
+    <Description>A WPF tool for monitoring and diagnosing .NET application memory usage, detecting leaks, and analyzing heap objects.</Description>
+    <Copyright>Copyright © 2026 Botomatic</Copyright>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icons8-spy-96.png</PackageIcon>
+    <ApplicationIcon>icons8-spy-96.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="splashscreen.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="icons8-spy-96.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Assets\icons8-spy-96.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

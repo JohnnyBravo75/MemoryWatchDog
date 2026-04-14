@@ -72,6 +72,7 @@ namespace MemoryWatchDogApp
             this.currentSelectedObject = null;
             this.typeInfo = null;
 
+            this.Owner?.Activate();
             this.Owner = null;
         }
 
