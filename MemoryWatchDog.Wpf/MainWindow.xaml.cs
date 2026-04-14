@@ -77,9 +77,6 @@
                 this.StartAutoWatchButton.IsEnabled = true;
 
                 this.StatusText.Text = $"Auto-attached to {this.selectedProcess.ProcessName} (PID {processId})";
-
-                // Automatically trigger a snapshot capture
-                this.ManualSnaphotButton_Click(this, new RoutedEventArgs());
             }
             catch (Exception ex)
             {
@@ -185,14 +182,8 @@
 
             try
             {
-                this.CaptureProgressText.Text = "Running GC...";
-                this.OverviewText.Text = "Running Garbage Collector, please wait...";
-
-                // clean up myself
+                // clean up myself first
                 watchDog.ForceGC();
-
-                // clean up target
-                await Task.Run(() => watchDog.ForceRemoteGC(selectedProcess.Id));
 
                 // Filter
                 var excludeSystemNs = this.ExcludeSystemNamespacesCheckBox.IsChecked == true;
@@ -268,6 +259,7 @@
 
             try
             {
+
                 using (var watchDog = new MemoryWatchDog())
                 {
                     await Task.Run(() => watchDog.ForceRemoteGC(process.Id));

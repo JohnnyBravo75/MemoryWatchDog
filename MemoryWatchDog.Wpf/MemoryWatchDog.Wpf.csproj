@@ -47,15 +47,16 @@
   </ItemGroup>
 
   <!--
-    Dual-architecture publish.
+    Dual-architecture publish with Launcher.
 
     Automatic: Runs after every Release build (Debug builds are unaffected).
     Manual:    dotnet msbuild -t:PublishBoth /p:Configuration=Release
            or: .\Publish.ps1
 
     Produces:
-      publish\x64\MemoryWatchDog.Wpf.exe
-      publish\x86\MemoryWatchDog.Wpf.exe
+      publish\MemoryWatchDog.Launcher.exe  (AnyCPU, user entry point)
+      publish\x64\MemoryWatchDog_x64.exe
+      publish\x86\MemoryWatchDog_x86.exe
 
     Guards against infinite recursion:
       RuntimeIdentifier is set by 'dotnet publish' so inner builds skip this target.
@@ -71,17 +72,23 @@
           Condition="'$(Configuration)' == 'Release' AND '$(RuntimeIdentifier)' == '' AND '$(_IsPublishBothInner)' != 'true'">
 
     <Message Importance="high" Text="" />
-    <Message Importance="high" Text="===== Dual-Architecture Publish (automatic on Release build) =====" />
+    <Message Importance="high" Text="===== Full Publish: Launcher + Dual-Architecture (automatic on Release build) =====" />
 
-    <Message Importance="high" Text="Publishing win-x64 -> $(PublishBothOutputRoot)\x64" />
+    <Message Importance="high" Text="Publishing Launcher (AnyCPU) -> $(PublishBothOutputRoot)" />
+    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\MemoryWatchDog.Launcher\MemoryWatchDog.Launcher.csproj&quot; --configuration $(Configuration) --output &quot;$(PublishBothOutputRoot)&quot;" />
+
+    <Message Importance="high" Text="Publishing WPF win-x64 -> $(PublishBothOutputRoot)\x64" />
     <Exec Command="dotnet publish &quot;$(MSBuildProjectFullPath)&quot; --configuration $(Configuration) --runtime win-x64 --self-contained $(PublishBothSelfContained) --output &quot;$(PublishBothOutputRoot)\x64&quot; /p:_IsPublishBothInner=true" />
+    <Exec Command="copy /Y &quot;$(PublishBothOutputRoot)\x64\MemoryWatchDog.Wpf.exe&quot; &quot;$(PublishBothOutputRoot)\x64\MemoryWatchDog_x64.exe&quot;" />
 
-    <Message Importance="high" Text="Publishing win-x86 -> $(PublishBothOutputRoot)\x86" />
+    <Message Importance="high" Text="Publishing WPF win-x86 -> $(PublishBothOutputRoot)\x86" />
     <Exec Command="dotnet publish &quot;$(MSBuildProjectFullPath)&quot; --configuration $(Configuration) --runtime win-x86 --self-contained $(PublishBothSelfContained) --output &quot;$(PublishBothOutputRoot)\x86&quot; /p:_IsPublishBothInner=true" />
+    <Exec Command="copy /Y &quot;$(PublishBothOutputRoot)\x86\MemoryWatchDog.Wpf.exe&quot; &quot;$(PublishBothOutputRoot)\x86\MemoryWatchDog_x86.exe&quot;" />
 
-    <Message Importance="high" Text="===== Dual-Architecture Publish complete! =====" />
-    <Message Importance="high" Text="  publish\x64\MemoryWatchDog.Wpf.exe" />
-    <Message Importance="high" Text="  publish\x86\MemoryWatchDog.Wpf.exe" />
+    <Message Importance="high" Text="===== Publish complete! =====" />
+    <Message Importance="high" Text="  publish\MemoryWatchDog.Launcher.exe  &lt;- start this" />
+    <Message Importance="high" Text="  publish\x64\MemoryWatchDog_x64.exe" />
+    <Message Importance="high" Text="  publish\x86\MemoryWatchDog_x86.exe" />
     <Message Importance="high" Text="" />
   </Target>
 

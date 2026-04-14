@@ -12,9 +12,9 @@ namespace MemoryWatchDog
     {
         /// <summary>
         /// Resolves the path to the sibling exe for the opposite architecture.
-        /// Expects the deployment layout:
-        ///   install-dir\x64\MemoryWatchDog.Wpf.exe
-        ///   install-dir\x86\MemoryWatchDog.Wpf.exe
+        /// Supports two deployment layouts:
+        ///   Subfolder:  install-dir\x64\MemoryWatchDog.Wpf.exe
+        ///   Flat:       install-dir\MemoryWatchDog.x64.exe
         /// </summary>
         public static string FindSiblingExe(string requiredArch)
         {
@@ -25,19 +25,38 @@ namespace MemoryWatchDog
             }
 
             string currentDir = Path.GetDirectoryName(currentExe);
-            string parentDir = Path.GetDirectoryName(currentDir);
-            string exeName = Path.GetFileName(currentExe);
 
-            if (parentDir == null)
+            // Flat layout: MemoryWatchDog_x64.exe in the same folder
+            string flatUnderscore = Path.Combine(currentDir, $"MemoryWatchDog_{requiredArch}.exe");
+            if (File.Exists(flatUnderscore))
             {
-                return null;
+                return flatUnderscore;
             }
 
-            // Try sibling folder: ..\<requiredArch>\<exeName>
-            string siblingPath = Path.Combine(parentDir, requiredArch, exeName);
-            if (File.Exists(siblingPath))
+            // Flat layout: MemoryWatchDog.x64.exe in the same folder
+            string flatDot = Path.Combine(currentDir, $"MemoryWatchDog.{requiredArch}.exe");
+            if (File.Exists(flatDot))
             {
-                return siblingPath;
+                return flatDot;
+            }
+
+            // Subfolder layout: ..\<requiredArch>\MemoryWatchDog_<arch>.exe
+            string parentDir = Path.GetDirectoryName(currentDir);
+            if (parentDir != null)
+            {
+                string siblingRenamed = Path.Combine(parentDir, requiredArch, $"MemoryWatchDog_{requiredArch}.exe");
+                if (File.Exists(siblingRenamed))
+                {
+                    return siblingRenamed;
+                }
+
+                // Legacy: ..\<requiredArch>\<same exe name>
+                string exeName = Path.GetFileName(currentExe);
+                string siblingPath = Path.Combine(parentDir, requiredArch, exeName);
+                if (File.Exists(siblingPath))
+                {
+                    return siblingPath;
+                }
             }
 
             return null;

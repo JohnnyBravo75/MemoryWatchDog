@@ -305,9 +305,9 @@
                 var staticRootAddresses = ClrReader.BuildStaticRootAddresses(runtime);
 
                 // Lookup to reuse already-created ObjectInfo instances for references
-                //var objectsByAddress = !memoryStatsFilter.AggregateObjects
-                //    ? new Dictionary<ulong, ObjectInfo>()
-                //    : null;
+                var objectsByAddress = !memoryStatsFilter.AggregateObjects
+                    ? new Dictionary<ulong, ObjectInfo>()
+                    : null;
 
                 foreach (var obj in runtime.Heap.EnumerateObjects())
                 {
@@ -352,29 +352,13 @@
                             }
 
                             var isSystemObj = ClrReader.IsSystemType(type);
-                            var objInfo = new ObjectInfo()
-                            {
-                                Reference = obj,
-                                TypeName = type?.Name,
-                                Size = obj.Size,
-                                ElementType = type?.ElementType.ToString(),
-                                Address = obj.Address,
-                                AssemblyName = type?.Module?.AssemblyName ?? "Unknown Assembly",
-                                // Fields = !isSystemObj ? ClrReader.GetFields(obj, type) : null,                           
-                            };
+
+                            ObjectInfo objInfo = CreateObjectInfo(obj, type, memoryStatsFilter, staticRootAddresses, isSystemObj);
 
                             if (!memoryStatsFilter.AggregateObjects)
                             {
-                                if (!isSystemObj)
-                                {
-                                    objInfo.DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrReader.GetDisplayValue(obj, type) : "";
-                                    objInfo.IsDisposed = ClrReader.IsObjectDisposed(obj, type);
-                                    objInfo.IsStatic = staticRootAddresses.Contains(obj.Address);
-                                    objInfo.IsEventHandler = ClrReader.IsEventHandler(type);
-                                }
-
                                 // Register this object so references from later objects can reuse it
-                                // objectsByAddress[obj.Address] = objInfo;
+                                objectsByAddress[obj.Address] = objInfo;
 
                                 // Build field name lookup: address → field name for this object's fields
                                 var fieldNames = !isSystemObj ? ClrReader.GetReferenceFieldNames(obj, type) : null;
@@ -385,20 +369,20 @@
                                     ObjectInfo refObjInfo;
 
                                     // Reuse an already-scanned ObjectInfo if available
-                                    //if (!objectsByAddress.TryGetValue(refObj.Address, out refObjInfo))
-                                    //{
-                                    var isSystemRefObj = ClrReader.IsSystemType(refObj.Type);
-                                    refObjInfo = new ObjectInfo
+                                    if (!objectsByAddress.TryGetValue(refObj.Address, out refObjInfo))
                                     {
-                                        Reference = refObj,
-                                        TypeName = refObj.Type?.Name ?? "Unknown",
-                                        Size = refObj.Size,
-                                        ElementType = refObj.Type?.ElementType.ToString(),
-                                        Address = refObj.Address,
-                                        // AssemblyName = refObj.Type?.Module?.AssemblyName ?? "Unknown Assembly",
-                                        DisplayValue = memoryStatsFilter.CaptureDisplayValues && !isSystemRefObj ? ClrReader.GetDisplayValue(refObj, refObj.Type) : "",
-                                    };
-                                    //}
+                                        var isSystemRefObj = ClrReader.IsSystemType(refObj.Type);
+                                        refObjInfo = new ObjectInfo
+                                        {
+                                            Reference = refObj,
+                                            TypeName = refObj.Type?.Name ?? "Unknown",
+                                            Size = refObj.Size,
+                                            ElementType = refObj.Type?.ElementType.ToString(),
+                                            Address = refObj.Address,
+                                            AssemblyName = refObj.Type?.Module?.AssemblyName ?? "Unknown Assembly",
+                                            DisplayValue = memoryStatsFilter.CaptureDisplayValues && !isSystemRefObj ? ClrReader.GetDisplayValue(refObj, refObj.Type) : "",
+                                        };
+                                    }
 
                                     if (fieldNames != null && fieldNames.TryGetValue(refObj.Address, out var fieldName))
                                     {
@@ -422,5 +406,31 @@
             }
         }
 
+        private static ObjectInfo CreateObjectInfo(ClrObject obj, ClrType type, MemoryStatsFilter memoryStatsFilter, HashSet<ulong> staticRootAddresses, bool isSystemObj)
+        {
+            var objInfo = new ObjectInfo()
+            {
+                Reference = obj,
+                TypeName = type?.Name,
+                Size = obj.Size,
+                ElementType = type?.ElementType.ToString(),
+                Address = obj.Address,
+                AssemblyName = type?.Module?.AssemblyName ?? "Unknown Assembly",
+                // Fields = !isSystemObj ? ClrReader.GetFields(obj, type) : null,                           
+            };
+
+            if (!memoryStatsFilter.AggregateObjects)
+            {
+                if (!isSystemObj)
+                {
+                    objInfo.DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrReader.GetDisplayValue(obj, type) : "";
+                    objInfo.IsDisposed = ClrReader.IsObjectDisposed(obj, type);
+                    objInfo.IsStatic = staticRootAddresses.Contains(obj.Address);
+                    objInfo.IsEventHandler = ClrReader.IsEventHandler(type);
+                }
+            }
+
+            return objInfo;
+        }
     }
 }
