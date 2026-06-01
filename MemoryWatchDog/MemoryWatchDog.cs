@@ -353,11 +353,21 @@
 
                             var isSystemObj = ClrReader.IsSystemType(type);
 
-                            ObjectInfo objInfo = CreateObjectInfo(obj, type, memoryStatsFilter, staticRootAddresses, isSystemObj);
+                            ObjectInfo objInfo;
+                            if (!memoryStatsFilter.AggregateObjects && objectsByAddress.TryGetValue(obj.Address, out objInfo))
+                            {
+                                // A stub was already created when a parent object referenced this address.
+                                // Upgrade it in-place so all existing parent References lists see the full data.
+                                UpgradeObjectInfo(objInfo, obj, type, memoryStatsFilter, staticRootAddresses, isSystemObj);
+                            }
+                            else
+                            {
+                                objInfo = CreateObjectInfo(obj, type, memoryStatsFilter, staticRootAddresses, isSystemObj);
+                            }
 
                             if (!memoryStatsFilter.AggregateObjects)
                             {
-                                // Register this object so references from later objects can reuse it
+                                // Register / overwrite so later forward-references find the canonical instance
                                 objectsByAddress[obj.Address] = objInfo;
 
                                 // Build field name lookup: address → field name for this object's fields
@@ -382,6 +392,9 @@
                                             AssemblyName = refObj.Type?.Module?.AssemblyName ?? "Unknown Assembly",
                                             DisplayValue = memoryStatsFilter.CaptureDisplayValues && !isSystemRefObj ? ClrReader.GetDisplayValue(refObj, refObj.Type) : "",
                                         };
+                                        // Register stub immediately so other parents can share the same instance
+                                        // and the heap loop can upgrade it in-place later.
+                                        objectsByAddress[refObj.Address] = refObjInfo;
                                     }
 
                                     if (fieldNames != null && fieldNames.TryGetValue(refObj.Address, out var fieldName))
@@ -403,6 +416,27 @@
                 }
 
                 this.CaptureProgress?.Invoke(this, new CaptureProgressEventArgs(objectsProcessed, memoryStats.Types.Count, $"Objects: {objectsProcessed} | Types: {memoryStats.Types.Count}"));
+            }
+        }
+
+        /// <summary>
+        /// Fills in full details on an ObjectInfo that was previously created as a forward-reference stub.
+        /// Called when the heap enumerator finally visits the object the stub points to.
+        /// </summary>
+        private static void UpgradeObjectInfo(ObjectInfo objInfo, ClrObject obj, ClrType type, MemoryStatsFilter memoryStatsFilter, HashSet<ulong> staticRootAddresses, bool isSystemObj)
+        {
+            objInfo.Reference = obj;
+            objInfo.TypeName = type?.Name;
+            objInfo.Size = obj.Size;
+            objInfo.ElementType = type?.ElementType.ToString();
+            objInfo.AssemblyName = type?.Module?.AssemblyName ?? "Unknown Assembly";
+
+            if (!isSystemObj)
+            {
+                objInfo.DisplayValue = memoryStatsFilter.CaptureDisplayValues ? ClrReader.GetDisplayValue(obj, type) : "";
+                objInfo.IsDisposed = ClrReader.IsObjectDisposed(obj, type);
+                objInfo.IsStatic = staticRootAddresses.Contains(obj.Address);
+                objInfo.IsEventHandler = ClrReader.IsEventHandler(type);
             }
         }
 
