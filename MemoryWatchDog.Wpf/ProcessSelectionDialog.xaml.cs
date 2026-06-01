@@ -97,7 +97,7 @@ namespace MemoryWatchDogApp
                 var versions = new Dictionary<int, string>();
                 foreach (var proc in processList)
                 {
-                    var version = watchDog.GetNETVersion(proc.Id);
+                    var version = watchDog.Grabber.GetNETVersion(proc.Id);
                     if (!string.IsNullOrEmpty(version))
                     {
                         versions[proc.Id] = version;

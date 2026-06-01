@@ -24,7 +24,7 @@ namespace MemoryWatchDog.Test
         public void Test_GrabOnce_SaveToFile()
         {
             var memWatchDog = new MemoryWatchDog();
-            var memStats = memWatchDog.GetMemoryStats();
+            var memStats = memWatchDog.Grabber.GetMemoryStats();
             var filePath = MemoryStats.GetDefaultFilePath();
             memStats.WriteToFile(filePath);
 
@@ -36,16 +36,14 @@ namespace MemoryWatchDog.Test
         {
 
 
-            var memWatchDog = new MemoryWatchDog
+            var memWatchDog = new MemoryWatchDog();
+            memWatchDog.Grabber.MinMemoryCleanupLimitBytes = 1000;
+            memWatchDog.Grabber.WriteMemStatsFile = true;
+            memWatchDog.Grabber.MemStatsFilter = new MemoryStatsFilter
             {
-                MinMemoryCleanupLimitBytes = 1000,
-                WriteMemStatsFile = true,
-                MemStatsFilter = new MemoryStatsFilter
-                {
-                    AggregateObjects = true,
-                    MinObjectCount = 10,
-                    ExcludeNameSpaces = new List<string> { "System.", "Microsoft." }
-                }
+                AggregateObjects = true,
+                MinObjectCount = 10,
+                ExcludeNameSpaces = new List<string> { "System.", "Microsoft." }
             };
 
             memWatchDog.StartWatching(new TimeSpan(0, 0, 1));
@@ -65,7 +63,7 @@ namespace MemoryWatchDog.Test
                 cts.CancelAfter(TimeSpan.FromSeconds(1));
 
                 var memWatchDog = new MemoryWatchDog();
-                var stats = memWatchDog.GetMemoryStats(cancellationToken: cts.Token);
+                var stats = memWatchDog.Grabber.GetMemoryStats(cancellationToken: cts.Token);
             }
             catch (OperationCanceledException)
             {

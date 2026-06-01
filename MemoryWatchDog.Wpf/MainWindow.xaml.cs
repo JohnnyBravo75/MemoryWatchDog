@@ -136,9 +136,9 @@
             if (string.IsNullOrWhiteSpace(this.objectsFilterText))
                 return true;
 
-            if (item is ObjectInfo obj)
+            if (item is TypeInfo typeInfo)
             {
-                return obj.TypeName.Contains(this.objectsFilterText, StringComparison.OrdinalIgnoreCase);
+                return typeInfo.TypeName.Contains(this.objectsFilterText, StringComparison.OrdinalIgnoreCase);
             }
 
             return false;
@@ -172,7 +172,7 @@
 
             var watchDog = new MemoryWatchDog();
 
-            watchDog.CaptureProgress += (s, args) =>
+            watchDog.Grabber.CaptureProgress += (s, args) =>
             {
                 this.Dispatcher.BeginInvoke(() =>
                 {
@@ -183,7 +183,7 @@
             try
             {
                 // clean up myself first
-                watchDog.ForceGC();
+                watchDog.Grabber.ForceGC();
 
                 // Filter
                 var excludeSystemNs = this.ExcludeSystemNamespacesCheckBox.IsChecked == true;
@@ -200,7 +200,7 @@
 
                 // Capture the stats
                 var stats = await Task.Run(() =>
-                    watchDog.GetMemoryStats(filter, selectedProcess.Id, cancellationToken));
+                    watchDog.Grabber.GetMemoryStats(filter, selectedProcess.Id, cancellationToken));
 
                 if (stats == null)
                 {
@@ -262,7 +262,7 @@
 
                 using (var watchDog = new MemoryWatchDog())
                 {
-                    await Task.Run(() => watchDog.ForceRemoteGC(process.Id));
+                    await Task.Run(() => watchDog.Grabber.ForceRemoteGC(process.Id));
                 }
 
                 this.StatusText.Text = $"GC triggered on process {process.ProcessName} (PID {process.Id})";
@@ -613,7 +613,7 @@
                 {
                     try
                     {
-                        await Task.Run(() => watchDog.ForceRemoteGC(processId));
+                        await Task.Run(() => watchDog.Grabber.ForceRemoteGC(processId));
                     }
                     catch
                     {
@@ -630,7 +630,7 @@
                     CaptureDisplayValues = false
                 };
 
-                var snapshot = await Task.Run(() => watchDog.GetMemoryStats(filter, processId));
+                var snapshot = await Task.Run(() => watchDog.Grabber.GetMemoryStats(filter, processId));
 
                 stopwatch.Stop();
 
@@ -786,7 +786,7 @@
             {
                 using var watchDog = new MemoryWatchDog();
 
-                watchDog.CaptureProgress += (s, args) =>
+                watchDog.Grabber.CaptureProgress += (s, args) =>
                 {
                     this.Dispatcher.BeginInvoke(() =>
                     {
@@ -804,7 +804,7 @@
                     ExcludeNameSpaces = new List<string>()
                 };
 
-                var stats = await Task.Run(() => watchDog.GetMemoryStats(filter, processId, cancellationToken));
+                var stats = await Task.Run(() => watchDog.Grabber.GetMemoryStats(filter, processId, cancellationToken));
 
                 if (stats != null)
                 {

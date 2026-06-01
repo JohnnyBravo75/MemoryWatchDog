@@ -37,16 +37,21 @@
 
         public void Clear()
         {
+            if (this.TypeName == null)
+            {
+                return;
+            }
+
             this.TypeName = null;
             this.ElementType = null;
             this.AssemblyName = null;
             this.Reference = null;
             if (this.References != null)
             {
-                foreach (var reference in this.References)
-                {
-                    reference.Clear();
-                }
+                //foreach (var reference in this.References)
+                //{
+                //    reference.Clear();
+                //}
                 this.References.Clear();
             }
         }
