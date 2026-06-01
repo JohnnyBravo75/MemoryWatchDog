@@ -18,6 +18,8 @@
 
         public string ProcessName { get; set; }
 
+        public string Warning { get; set; }
+
         [Description("Total size of the heap")]
         public long TotalSize { get; set; }
 

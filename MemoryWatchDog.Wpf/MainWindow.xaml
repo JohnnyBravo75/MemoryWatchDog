@@ -35,6 +35,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="ProcessHeader" Grid.Column="0" FontWeight="Bold" FontSize="14"
@@ -42,7 +43,10 @@
             <Button x:Name="SelectProcessButton" Grid.Row="1" Grid.Column="0" Content="Attach to Process"
                     Width="120" Click="SelectProcessButton_Click"
                     ToolTip="Open dialog to select a process"/>
-            <TextBlock x:Name="SelectedProcessText" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
+            <Button x:Name="LoadDumpButton" Grid.Row="1" Grid.Column="1" Content="📂 Load Dump..."
+                    Width="110" Margin="5,0,0,0" Click="LoadDumpButton_Click"
+                    ToolTip="Open a Windows memory dump file (.dmp) for analysis"/>
+            <TextBlock x:Name="SelectedProcessText" Grid.Row="1" Grid.Column="3" VerticalAlignment="Center"
                        Margin="10,0,0,0" FontSize="14" Foreground="Blue" 
                        Text="No process selected"/>
 

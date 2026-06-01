@@ -53,6 +53,64 @@ namespace MemoryWatchDog
             }
         }
 
+        public MemoryStats GetMemoryStatsFromDump(string dumpFileName, MemoryStatsFilter memoryStatsFilter = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            if (memoryStatsFilter == null)
+            {
+                memoryStatsFilter = new MemoryStatsFilter();
+            }
+
+            var memoryStats = new MemoryStats();
+
+            ClrRuntime runtime = null;
+            try
+            {
+                runtime = ClrReader.LoadDump(dumpFileName);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                memoryStats.CaptureDate = DateTime.Now;
+                memoryStats.ProcessName = System.IO.Path.GetFileName(dumpFileName);
+
+                if (!runtime.Heap.CanWalkHeap)
+                {
+                    memoryStats.Warning = "⚠️ This dump does not contain a full managed heap (Mini Dump?). " +
+                        "Object data is incomplete or unavailable. Use 'procdump -ma' or 'dotnet-dump collect' for a full dump.";
+                }
+
+                ReadOverviewStats(runtime, memoryStats);
+
+                if (memoryStatsFilter.CaputureThreads)
+                {
+                    memoryStats.ActiveWorkerThreads = runtime.ThreadPool.ActiveWorkerThreads;
+                    memoryStats.IdleWorkerThreads = runtime.ThreadPool.IdleWorkerThreads;
+                    memoryStats.WindowsThreadPoolThreadCount = runtime.ThreadPool.WindowsThreadPoolThreadCount;
+                    memoryStats.MaxThreads = runtime.ThreadPool.MaxThreads;
+
+                    this.ReadThreads(runtime, memoryStats, cancellationToken);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (memoryStatsFilter.CaputureObjects)
+                {
+                    this.ReadHeap(runtime, memoryStats, memoryStatsFilter, cancellationToken);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                FilterByMaxObjects(memoryStats, memoryStatsFilter);
+
+                this.SnapshotTaken?.Invoke(this, new MemoryStatsTakenEventArgs(memoryStats));
+
+                return memoryStats;
+            }
+            finally
+            {
+                ClrReader.DetachFromClr(runtime);
+            }
+        }
+
         public MemoryStats GetMemoryStats(MemoryStatsFilter memoryStatsFilter = null, int? processId = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (memoryStatsFilter == null)

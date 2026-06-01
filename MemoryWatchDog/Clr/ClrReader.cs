@@ -20,6 +20,23 @@
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern bool IsWow64Process(IntPtr hProcess, out bool isWow64);
 
+        public static ClrRuntime LoadDump(string fileName)
+        {
+
+            var dataTarget = DataTarget.LoadDump(fileName);
+
+            if (dataTarget.ClrVersions.Count() == 0)
+            {
+                throw new InvalidOperationException($"Target file ({fileName}) is not a .NET dump.");
+            }
+
+            var clrInfo = dataTarget.ClrVersions[0];
+
+            var runtime = clrInfo.CreateRuntime();
+
+            return runtime;
+        }
+
         public static ClrRuntime AttachToClr(int? processId = null)
         {
             if (processId == null)

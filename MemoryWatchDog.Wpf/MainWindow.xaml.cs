@@ -118,6 +118,103 @@
             }
         }
 
+        private async void LoadDumpButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Open Memory Dump",
+                Filter = "Dump Files (*.dmp)|*.dmp|All Files (*.*)|*.*",
+                DefaultExt = ".dmp"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var dumpFile = dialog.FileName;
+
+            this.LoadDumpButton.IsEnabled = false;
+            this.SelectProcessButton.IsEnabled = false;
+            this.ExportJsonButton.IsEnabled = false;
+            this.CancelButton.IsEnabled = true;
+            this.currentStats = null;
+            this.StatusText.Text = $"Analyzing dump: {System.IO.Path.GetFileName(dumpFile)}...";
+            this.OverviewText.Text = "Loading memory statistics from dump, please wait...";
+            this.ObjectsGrid.ItemsSource = null;
+            this.ThreadsGrid.ItemsSource = null;
+            this.SelectedProcessText.Text = $"📂 {System.IO.Path.GetFileName(dumpFile)}";
+
+            this.CaptureProgressText.Text = "Loading dump...";
+            this.CaptureProgressPanel.Visibility = Visibility.Visible;
+
+            this.captureCts = new CancellationTokenSource();
+            var cancellationToken = this.captureCts.Token;
+
+            var watchDog = new MemoryWatchDog();
+
+            watchDog.Grabber.CaptureProgress += (s, args) =>
+            {
+                this.Dispatcher.BeginInvoke(() =>
+                {
+                    this.CaptureProgressText.Text = $"Objects: {args.ObjectsProcessed} | Types: {args.TypesFound}";
+                });
+            };
+
+            try
+            {
+                var excludeSystemNs = this.ExcludeSystemNamespacesCheckBox.IsChecked == true;
+                var filter = new MemoryStatsFilter
+                {
+                    ExcludeNameSpaces = excludeSystemNs
+                        ? ClrReader.GetSystemNamespaces()
+                        : new List<string>(),
+                    AggregateObjects = (this.AggregateObjectsCheckBox.IsChecked == true),
+                    CaptureDisplayValues = (this.CaptureDisplayValuesCheckBox.IsChecked == true)
+                };
+
+                var stats = await Task.Run(() =>
+                    watchDog.Grabber.GetMemoryStatsFromDump(dumpFile, filter, cancellationToken));
+
+                if (stats == null)
+                {
+                    this.OverviewText.Text = "Failed to retrieve memory statistics from dump.";
+                    this.StatusText.Text = "Error";
+                    return;
+                }
+
+                this.AddSnapshotAndSelect(stats);
+
+                if (!string.IsNullOrEmpty(stats.Warning))
+                {
+                    this.StatusText.Text = stats.Warning;
+                    MessageBox.Show(stats.Warning, "Dump Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                this.OverviewText.Text = "Capture was cancelled.";
+                this.StatusText.Text = "Cancelled";
+            }
+            catch (Exception ex)
+            {
+                this.OverviewText.Text = $"Error reading dump file:\n\n{ex.Message}\n\n" +
+                    "Note: Only Full Dumps contain managed heap data. Mini Dumps may have limited information.";
+                this.StatusText.Text = "Error";
+            }
+            finally
+            {
+                this.LoadDumpButton.IsEnabled = true;
+                this.SelectProcessButton.IsEnabled = true;
+                this.CancelButton.IsEnabled = false;
+                this.CaptureProgressPanel.Visibility = Visibility.Collapsed;
+
+                this.captureCts?.Dispose();
+                this.captureCts = null;
+                watchDog?.Dispose();
+            }
+        }
+
         private void AboutButton_Click(object sender, RoutedEventArgs e)
         {
             var aboutWindow = new AboutWindow();
