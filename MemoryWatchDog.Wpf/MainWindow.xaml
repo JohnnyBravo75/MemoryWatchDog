@@ -48,7 +48,17 @@
                     ToolTip="Open a Windows memory dump file (.dmp) for analysis"/>
             <TextBlock x:Name="SelectedProcessText" Grid.Row="1" Grid.Column="3" VerticalAlignment="Center"
                        Margin="10,0,0,0" FontSize="14" Foreground="Blue" 
-                       Text="No process selected"/>
+                       Text="No process selected" Cursor="Arrow">
+                <TextBlock.ContextMenu>
+                    <ContextMenu x:Name="ProcessContextMenu">
+                        <MenuItem x:Name="CreateDumpContextMenuItem" Header="📸 Create Full Dump..."
+                                  Click="CreateDumpContextMenuItem_Click"
+                                  ToolTip="Create a full memory dump of the attached process using dotnet-dump"/>
+                        <Separator/>
+                        <MenuItem Header="📋 Copy PID" Click="CopyPidMenuItem_Click"/>
+                    </ContextMenu>
+                </TextBlock.ContextMenu>
+            </TextBlock>
 
 
         </Grid>

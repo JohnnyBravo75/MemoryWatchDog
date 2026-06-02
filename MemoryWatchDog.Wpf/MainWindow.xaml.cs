@@ -84,10 +84,35 @@
             }
         }
 
-        private void SelectProcessButton_Click(object sender, RoutedEventArgs e)
+        private async void CreateDumpContextMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.selectedProcess == null)
+                return;
+
+            var progressDialog = new DumpProgressDialog(this.selectedProcess.ProcessName, this.selectedProcess.Id)
+            {
+                Owner = this
+            };
+
+            if (progressDialog.ShowDialog() == true && progressDialog.CreatedDumpFile != null)
+            {
+                await this.LoadDumpFromFile(progressDialog.CreatedDumpFile);
+            }
+        }
+
+        private void CopyPidMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.selectedProcess != null)
+            {
+                Clipboard.SetText(this.selectedProcess.Id.ToString());
+                this.StatusText.Text = $"PID {this.selectedProcess.Id} copied to clipboard.";
+            }
+        }
+
+        private async void SelectProcessButton_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new ProcessSelectionDialog();
-            dialog.Owner = this;
+
 
             if (dialog.ShowDialog() == true && dialog.SelectedProcess != null)
             {
@@ -116,6 +141,10 @@
                 this.ForceGCButton.IsEnabled = true;
                 this.StartAutoWatchButton.IsEnabled = true;
             }
+            else if (dialog.DialogResult == true && dialog.CreatedDumpFile != null)
+            {
+                await this.LoadDumpFromFile(dialog.CreatedDumpFile);
+            }
         }
 
         private async void LoadDumpButton_Click(object sender, RoutedEventArgs e)
@@ -132,8 +161,11 @@
                 return;
             }
 
-            var dumpFile = dialog.FileName;
+            await this.LoadDumpFromFile(dialog.FileName);
+        }
 
+        public async Task LoadDumpFromFile(string dumpFile)
+        {
             this.LoadDumpButton.IsEnabled = false;
             this.SelectProcessButton.IsEnabled = false;
             this.ExportJsonButton.IsEnabled = false;

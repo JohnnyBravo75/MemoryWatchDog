@@ -22,6 +22,8 @@ namespace MemoryWatchDogApp
 
         public ProcessInfo? SelectedProcess { get; set; }
 
+        public string? CreatedDumpFile { get; private set; }
+
         public ProcessSelectionDialog()
         {
             this.InitializeComponent();
@@ -167,7 +169,9 @@ namespace MemoryWatchDogApp
 
         private void ProcessGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            this.OkButton.IsEnabled = this.ProcessGrid.SelectedItem is ProcessInfo;
+            var hasSelection = this.ProcessGrid.SelectedItem is ProcessInfo;
+            this.OkButton.IsEnabled = hasSelection;
+            this.CreateDumpButton.IsEnabled = hasSelection;
         }
 
         private void ProcessGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -175,6 +179,23 @@ namespace MemoryWatchDogApp
             if (this.ProcessGrid.SelectedItem is ProcessInfo)
             {
                 this.SelectedProcess = (ProcessInfo)this.ProcessGrid.SelectedItem;
+                this.DialogResult = true;
+            }
+        }
+
+        private void CreateDumpButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.ProcessGrid.SelectedItem is not ProcessInfo selected)
+                return;
+
+            var progressDialog = new DumpProgressDialog(selected.ProcessName, selected.Id)
+            {
+                Owner = this
+            };
+
+            if (progressDialog.ShowDialog() == true && progressDialog.CreatedDumpFile != null)
+            {
+                this.CreatedDumpFile = progressDialog.CreatedDumpFile;
                 this.DialogResult = true;
             }
         }

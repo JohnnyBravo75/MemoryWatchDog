@@ -52,11 +52,15 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="StatusText" Grid.Column="0" VerticalAlignment="Center" Foreground="Gray"/>
-            <Button x:Name="OkButton" Grid.Column="2" Content="OK" Width="80" Margin="0,0,5,0"
+            <Button x:Name="CreateDumpButton" Grid.Column="2" Content="📸 Create Full Dump..." Width="150"
+                    Margin="0,0,5,0" Click="CreateDumpButton_Click" IsEnabled="False"
+                    ToolTip="Create a full memory dump of the selected process using dotnet-dump"/>
+            <Button x:Name="OkButton" Grid.Column="3" Content="OK" Width="80" Margin="0,0,5,0"
                     Click="OkButton_Click" IsEnabled="False" IsDefault="True"/>
-            <Button Grid.Column="3" Content="Cancel" Width="80"
+            <Button Grid.Column="4" Content="Cancel" Width="80"
                     Click="CancelButton_Click" IsCancel="True"/>
         </Grid>
     </Grid>
