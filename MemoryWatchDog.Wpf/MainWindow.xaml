@@ -229,8 +229,8 @@
             <TextBlock x:Name="CaptureProgressText" VerticalAlignment="Center" Margin="0,0,10,0"
                        Text="Objects: 0 | Types: 0" Foreground="DarkBlue"/>
             <ProgressBar x:Name="CaptureProgressBar" Width="200" Height="16" IsIndeterminate="True"/>
-            <Button x:Name="CancelButton" Content="Cancel" Width="60"
-                Margin="5,0,0,0" Click="CancelButton_Click" IsEnabled="False"
+            <Button x:Name="CancelButton" Content="✖ Cancel" Width="75"
+                Margin="5,0,0,0" Click="CancelButton_Click" IsEnabled="False" Foreground="Red"
                 ToolTip="Cancel the running capture"/>
         </StackPanel>
 

@@ -66,6 +66,13 @@ namespace MemoryWatchDogApp
         {
             this.Closed -= this.ObjectDetailWindow_Closed;
 
+            this.GraphCanvas.Children?.Clear();
+
+            this.RetentionTreeView.ItemsSource = null;
+            this.RetentionTreeView.RemoveHandler(
+                                TreeViewItem.ExpandedEvent,
+                                new RoutedEventHandler(this.RetentionTreeItem_Expanded));
+
             this.memoryStats = null;
             this.addressLookup = null;
             this.allDisplayItems = null;
@@ -490,7 +497,7 @@ namespace MemoryWatchDogApp
             {
                 this.DisplayName = obj.TypeName;
                 var addr = obj.Reference?.Address ?? 0;
-                this.DetailText = $"0x{addr:X} | {obj.Size} bytes";
+                this.DetailText = $"{obj.Size} bytes";
                 this.DisplayValue = obj.DisplayValue ?? "";
                 this.FieldName = fieldName ?? "";
                 this.FieldNameText = string.IsNullOrEmpty(this.FieldName) ? "" : $"{this.FieldName} →";

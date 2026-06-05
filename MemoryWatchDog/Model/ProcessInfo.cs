@@ -8,5 +8,6 @@
         public string MainWindowTitle { get; set; } = string.Empty;
         public string NETVersion { get; set; } = string.Empty;
         public bool IsDotNet => !string.IsNullOrEmpty(NETVersion);
+        public string Architecture { get; set; } = string.Empty;
     }
 }

@@ -1,10 +1,9 @@
-namespace MemoryWatchDog.Launcher
+namespace MemoryWatchDog.WpfLauncher
 {
     using System.Collections.ObjectModel;
     using System.ComponentModel;
     using System.Diagnostics;
     using System.IO;
-    using System.Runtime.InteropServices;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Data;
@@ -97,6 +96,16 @@ namespace MemoryWatchDog.Launcher
             }
         }
 
+        private void LaunchX64Button_Click(object sender, RoutedEventArgs e)
+        {
+            this.LaunchDirectly("x64");
+        }
+
+        private void LaunchX86Button_Click(object sender, RoutedEventArgs e)
+        {
+            this.LaunchDirectly("x86");
+        }
+
         private void AttachButton_Click(object sender, RoutedEventArgs e)
         {
             this.LaunchForSelectedProcess();
@@ -105,6 +114,45 @@ namespace MemoryWatchDog.Launcher
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
+        }
+
+        private void LaunchDirectly(string arch)
+        {
+            string? wpfExe = ProcessHelper.FindExe(arch);
+
+            if (wpfExe == null)
+            {
+                MessageBox.Show(
+                    $"Could not find MemoryWatchDog.Wpf for {arch}.\n\n" +
+                    $"Expected one of:\n" +
+                    $"  {arch}\\MemoryWatchDog.Wpf.exe  (subfolder layout)\n" +
+                    $"  MemoryWatchDog.{arch}.exe  (flat layout)\n\n" +
+                    $"relative to: {AppDomain.CurrentDomain.BaseDirectory}",
+                    "Not Found",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = wpfExe,
+                    UseShellExecute = true
+                };
+
+                Process.Start(startInfo);
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Failed to launch:\n{wpfExe}\n\n{ex.Message}",
+                    "Launch Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         private void LaunchForSelectedProcess()
@@ -122,13 +170,13 @@ namespace MemoryWatchDog.Launcher
                 requiredArch = Environment.Is64BitProcess ? "x64" : "x86";
             }
 
-            string? wpfExe = FindWpfExe(requiredArch);
+            string? wpfExe = ProcessHelper.FindExe(requiredArch);
 
             if (wpfExe == null)
             {
                 // Try the other architecture as fallback
                 string fallbackArch = requiredArch == "x64" ? "x86" : "x64";
-                wpfExe = FindWpfExe(fallbackArch);
+                wpfExe = ProcessHelper.FindExe(fallbackArch);
 
                 if (wpfExe != null)
                 {
@@ -181,45 +229,6 @@ namespace MemoryWatchDog.Launcher
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
-        }
-
-        /// <summary>
-        /// Finds the WPF exe for the given architecture.
-        /// Checks multiple naming conventions and layouts.
-        /// </summary>
-        private static string? FindWpfExe(string arch)
-        {
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-
-            // Subfolder layout: x64\MemoryWatchDog_x64.exe
-            string subRenamed = Path.Combine(baseDir, arch, $"MemoryWatchDog_{arch}.exe");
-            if (File.Exists(subRenamed))
-            {
-                return subRenamed;
-            }
-
-            // Subfolder layout: x64\MemoryWatchDog.Wpf.exe (legacy)
-            string subPath = Path.Combine(baseDir, arch, "MemoryWatchDog.Wpf.exe");
-            if (File.Exists(subPath))
-            {
-                return subPath;
-            }
-
-            // Flat layout: MemoryWatchDog_x64.exe
-            string flatUnderscore = Path.Combine(baseDir, $"MemoryWatchDog_{arch}.exe");
-            if (File.Exists(flatUnderscore))
-            {
-                return flatUnderscore;
-            }
-
-            // Flat layout: MemoryWatchDog.x64.exe
-            string flatDot = Path.Combine(baseDir, $"MemoryWatchDog.{arch}.exe");
-            if (File.Exists(flatDot))
-            {
-                return flatDot;
-            }
-
-            return null;
         }
 
 

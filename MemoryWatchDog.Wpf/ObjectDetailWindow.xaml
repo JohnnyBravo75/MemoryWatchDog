@@ -68,6 +68,8 @@
                       Unchecked="ExcludeSystemTypesCheckBox_Changed"
                       ToolTip="Hide references to System, Microsoft, Windows and other framework types"/>
             <TabControl>
+                
+                
                 <TabItem Header="Dependency Graph">
                     <Grid>
                         <TextBlock x:Name="NoSelectionText"
@@ -79,6 +81,7 @@
                         </ScrollViewer>
                     </Grid>
                 </TabItem>
+
                 <TabItem Header="Retention Graph">
                     <Grid>
                         <Grid.RowDefinitions>
