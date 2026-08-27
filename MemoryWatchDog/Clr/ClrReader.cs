@@ -136,7 +136,7 @@
 
         public static List<string> GetSystemNamespaces()
         {
-            return new List<string>() { "<>", "System", "Microsoft", "Windows", "mscorlib", "MS.", "Global", "Global Namespace", "<CppImplementationDetails>", "<CrtImplementationDetails>", "Internal." };
+            return new List<string>() { "<>", "System", "Microsoft", "Windows", "mscorlib", "MS.", "Global", "Global Namespace", "<CppImplementationDetails>", "<CrtImplementationDetails>", "Internal.", "Roslyn" };
         }
 
         public static bool IsSystemType(ClrType type)

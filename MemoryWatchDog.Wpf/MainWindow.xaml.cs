@@ -12,6 +12,7 @@
     using System.Windows.Media;
     using System.Windows.Threading;
     using MemoryWatchDog;
+    using Newtonsoft.Json;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -108,6 +109,147 @@
                 this.StatusText.Text = $"PID {this.selectedProcess.Id} copied to clipboard.";
             }
         }
+
+        private void CopyHeapForLlm_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.currentStats == null)
+            {
+                return;
+            }
+
+            const int TopN = 10;
+            const int SampleCount = 3;
+            var stats = this.currentStats;
+            long totalCollected = stats.TotalCollectedObjectSize;
+            bool isAggregated = stats.Types.Values.All(t => t.Objects.Count == 0);
+
+            bool excludeSystem = this.ExcludeSystemNamespacesCheckBox.IsChecked == true;
+            var systemNamespaces = excludeSystem ? ClrReader.GetSystemNamespaces() : null;
+
+            bool IsSystemType(string typeName)
+            {
+                if (systemNamespaces == null || string.IsNullOrEmpty(typeName))
+                {
+                    return false;
+                }
+
+                var ns = CommonUtil.GetNamespaceFromTypeName(typeName);
+                foreach (var sysNs in systemNamespaces)
+                {
+                    if (ns.StartsWith(sysNs, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            LlmHeapTypeDto ToDto(TypeInfo t)
+            {
+                var entry = new LlmHeapTypeDto
+                {
+                    TypeName = t.TypeName,
+                    Count = t.Count,
+                    TotalSizeBytes = t.Size,
+                    AvgSizeBytes = t.Count > 0 ? Math.Round((double)t.Size / t.Count, 1) : 0,
+                    PercentOfHeap = totalCollected > 0
+                        ? Math.Round((double)t.Size / totalCollected * 100, 2)
+                        : 0
+                };
+
+                foreach (var obj in t.Objects.Take(SampleCount))
+                {
+                    entry.SampleObjects.Add(BuildHeapRetentionDto(obj, 0, IsSystemType));
+                }
+
+                return entry;
+            }
+
+            var types = stats.Types.Values
+                .Where(t => !IsSystemType(t.TypeName))
+                .ToList();
+
+            var dto = new LlmHeapSnapshotDto
+            {
+                CaptureDate = stats.CaptureDate,
+                ProcessName = stats.ProcessName ?? "",
+                ProcessId = stats.ProcessId,
+                NETVersion = stats.NETVersion ?? "",
+                WorkingSetBytes = stats.WorkingSet,
+                GCHeapBytes = stats.GCHeapSize,
+                Gen0Bytes = stats.Gen0Size,
+                Gen1Bytes = stats.Gen1Size,
+                Gen2Bytes = stats.Gen2Size,
+                LOHBytes = stats.LOHSize,
+                POHBytes = stats.POHSize,
+                TotalCollectedObjectBytes = totalCollected,
+                UniqueTypeCount = types.Count,
+                TotalObjectCount = stats.ObjectCount,
+                IsAggregateMode = isAggregated,
+                TopByTotalSize = types
+                    .OrderByDescending(t => t.Size)
+                    .Take(TopN)
+                    .Select(ToDto)
+                    .ToList(),
+                TopByCount = types
+                    .OrderByDescending(t => t.Count)
+                    .Take(TopN)
+                    .Select(ToDto)
+                    .ToList(),
+                TopByAvgSize = types
+                    .Where(t => t.Count > 0)
+                    .OrderByDescending(t => (double)t.Size / t.Count)
+                    .Take(TopN)
+                    .Select(ToDto)
+                    .ToList()
+            };
+
+            var json = JsonConvert.SerializeObject(dto, new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Ignore,
+                DefaultValueHandling = DefaultValueHandling.Ignore,
+                Formatting = Formatting.Indented
+            });
+            Clipboard.SetText(json);
+
+            var hint = isAggregated ? " (no object samples — aggregate mode)" : $" with up to {SampleCount} object samples per type";
+            this.StatusText.Text = $"Heap snapshot (Top {TopN}){hint} copied to clipboard for LLM analysis.";
+        }
+
+        private static LlmRetentionNodeDto BuildHeapRetentionDto(ObjectInfo obj, int depth, Func<string, bool> isSystemType)
+        {
+            const int MaxDepth = 3;
+
+            var node = new LlmRetentionNodeDto
+            {
+                TypeName = obj.TypeName ?? "",
+                FieldName = obj.FieldName ?? "",
+                SizeBytes = obj.Size
+            };
+
+            if (depth < MaxDepth)
+            {
+                foreach (var child in obj.References)
+                {
+                    if (isSystemType(child.TypeName))
+                    {
+                        continue;
+                    }
+
+                    var childNode = BuildHeapRetentionDto(child, depth + 1, isSystemType);
+                    if (node.Children == null)
+                    {
+                        node.Children = new List<LlmRetentionNodeDto>();
+                    }
+
+                    node.Children.Add(childNode);
+                }
+            }
+
+            return node;
+        }
+
 
         private async void SelectProcessButton_Click(object sender, RoutedEventArgs e)
         {
@@ -424,6 +566,7 @@
                 this.currentStats = stats;
                 //this.ExportTxtButton.IsEnabled = true;
                 this.ExportJsonButton.IsEnabled = true;
+                this.CopyHeapForLlmButton.IsEnabled = true;
 
                 this.StatsHeader.Text = $"Memory Statistics - {stats.ProcessName}  ({stats.CaptureDate})";
                 this.OverviewText.Text = stats.BuildOverviewStatsString();
@@ -453,6 +596,7 @@
             else
             {
                 this.currentStats = null;
+                this.CopyHeapForLlmButton.IsEnabled = false;
                 this.StatsHeader.Text = "";
                 this.OverviewText.Text = "";
                 this.ObjectsGrid.ItemsSource = null;

@@ -245,6 +245,7 @@
             <TextBlock x:Name="StatsHeader" Grid.Column="0" FontWeight="Bold" FontSize="14"
                        Text="Memory Statistics" VerticalAlignment="Center"/>
 
+
             <TextBlock x:Name="StatusText" Grid.Column="3" VerticalAlignment="Center"
                        Foreground="Gray"/>
         </Grid>
@@ -406,16 +407,28 @@
 
         <!-- Status bar -->
         <Grid Grid.Row="5">
-            <StackPanel Orientation="Horizontal">
-                <!--<Button x:Name="ExportTxtButton" Grid.Column="1" Content="Export TXT" Width="90"
-                 Margin="0,0,5,0" Click="ExportTxtButton_Click" IsEnabled="False"
-                 ToolTip="Export the current memory snapshot to a text file"/>-->
-                <Button x:Name="ExportJsonButton" Grid.Column="2" Content="Export to file" Width="90"
-                 Margin="0,0,10,0" Click="ExportJsonButton_Click" IsEnabled="False"
-                 ToolTip="Export the current memory snapshot to a JSON file"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <!--<Button x:Name="ExportTxtButton" Content="Export TXT" Width="90"
+                     Margin="0,0,5,0" Click="ExportTxtButton_Click" IsEnabled="False"
+                     ToolTip="Export the current memory snapshot to a text file"/>-->
+                <Button x:Name="ExportJsonButton" Content="Export to file" Width="90"
+                     Margin="0,0,10,0" Click="ExportJsonButton_Click" IsEnabled="False"
+                     ToolTip="Export the current memory snapshot to a JSON file"/>
                 <Button x:Name="ImportJsonButton" Content="Import from file" Width="90"
-                 Margin="0,0,5,0" Click="ImportJsonButton_Click"
-                 ToolTip="Load a memory snapshot from a JSON file"/>
+                     Margin="0,0,5,0" Click="ImportJsonButton_Click"
+                     ToolTip="Load a memory snapshot from a JSON file"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="CopyHeapForLlmButton"  HorizontalAlignment="Right"
+                     Content="📋 Copy for LLM" Width="120" Margin="5,0,0,0"
+                     IsEnabled="False" Click="CopyHeapForLlm_Click"
+                     ToolTip="Copies a compact heap snapshot (top types by size, count and avg. size) as JSON to the clipboard for LLM analysis."/>
             </StackPanel>
         </Grid>
     </Grid>

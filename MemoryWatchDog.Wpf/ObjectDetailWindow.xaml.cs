@@ -10,6 +10,7 @@ namespace MemoryWatchDogApp
     using System.Windows.Media.Effects;
     using System.Windows.Shapes;
     using MemoryWatchDog;
+    using Newtonsoft.Json;
 
     /// <summary>
     /// Interaction logic for ObjectDetailWindow.xaml
@@ -22,13 +23,15 @@ namespace MemoryWatchDogApp
         private List<ObjectDisplayItem>? allDisplayItems;
         private List<string>? systemNamespaces = ClrReader.GetSystemNamespaces();
         private ObjectInfo? currentSelectedObject;
+        private LeakCandidate? leakCandidate;
 
-        public ObjectDetailWindow(TypeInfo typeInfo, MemoryStats memoryStats = null)
+        public ObjectDetailWindow(TypeInfo typeInfo, MemoryStats memoryStats = null, LeakCandidate leakCandidate = null)
         {
             this.InitializeComponent();
 
             this.typeInfo = typeInfo;
             this.memoryStats = memoryStats;
+            this.leakCandidate = leakCandidate;
 
             if (this.memoryStats != null)
             {
@@ -78,9 +81,11 @@ namespace MemoryWatchDogApp
             this.allDisplayItems = null;
             this.currentSelectedObject = null;
             this.typeInfo = null;
+            this.leakCandidate = null;
 
             this.Owner?.Activate();
             this.Owner = null;
+
         }
 
         private void FilterReferencedCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -112,10 +117,12 @@ namespace MemoryWatchDogApp
                 this.currentSelectedObject = item.ObjectInfo;
                 this.DrawDependencyGraph(item.ObjectInfo);
                 this.UpdateRetentionGraph(item.ObjectInfo);
+                this.CopyForLlmButton.IsEnabled = true;
             }
             else
             {
                 this.currentSelectedObject = null;
+                this.CopyForLlmButton.IsEnabled = false;
                 this.GraphCanvas.Children.Clear();
                 this.NoSelectionText.Text = "Select an object from the list to view its dependencies.";
                 this.NoSelectionText.Visibility = Visibility.Visible;
@@ -342,6 +349,74 @@ namespace MemoryWatchDogApp
             }
         }
 
+        private void CopyForLlm_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.currentSelectedObject == null)
+            {
+                return;
+            }
+
+            var dto = new LlmLeakContextDto
+            {
+                TypeName = this.typeInfo?.TypeName ?? this.currentSelectedObject.TypeName,
+                RetentionGraph = BuildRetentionDto(this.currentSelectedObject, 0)
+            };
+
+            if (this.leakCandidate != null)
+            {
+                dto.Confidence = this.leakCandidate.ConfidenceText;
+                dto.Pattern = this.leakCandidate.PatternText;
+                dto.InitialCount = this.leakCandidate.InitialCount;
+                dto.CurrentCount = this.leakCandidate.CurrentCount;
+                dto.CountGrowth = this.leakCandidate.CountGrowth;
+                dto.InitialTotalSizeBytes = this.leakCandidate.InitialTotalSize;
+                dto.CurrentTotalSizeBytes = this.leakCandidate.CurrentTotalSize;
+                dto.CurrentAverageSizeBytes = this.leakCandidate.CurrentAverageSize;
+                dto.TrendRSquared = this.leakCandidate.TrendRSquared;
+                dto.TrendSlope = this.leakCandidate.TrendSlope;
+                dto.GrowthRatePerInterval = this.leakCandidate.GrowthRatePerInterval;
+                dto.ConsecutiveGrowthCount = this.leakCandidate.ConsecutiveGrowthCount;
+                dto.HasDisposedInstances = this.leakCandidate.HasDisposedInstances;
+                dto.EstimatedTimeToOOM = this.leakCandidate.EstimatedTimeToOOMText;
+            }
+
+            var json = JsonConvert.SerializeObject(dto, Formatting.Indented);
+            Clipboard.SetText(json);
+
+            MessageBox.Show(
+                $"Retention graph for '{dto.TypeName}' copied to clipboard as JSON.\n\nPaste it into your LLM of choice.",
+                "Copied for LLM",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        private static LlmRetentionNodeDto BuildRetentionDto(ObjectInfo obj, int depth)
+        {
+            const int MaxDepth = 4;
+
+            var node = new LlmRetentionNodeDto
+            {
+                TypeName = obj.TypeName ?? "",
+                FieldName = obj.FieldName ?? "",
+                SizeBytes = obj.Size
+            };
+
+            if (depth < MaxDepth)
+            {
+                foreach (var child in obj.References)
+                {
+                    if (node.Children == null)
+                    {
+                        node.Children = new List<LlmRetentionNodeDto>();
+                    }
+
+                    node.Children.Add(BuildRetentionDto(child, depth + 1));
+                }
+            }
+
+            return node;
+        }
+
         private void OpenReferenceDetail(ObjectInfo refInfo)
         {
             ObjectInfo matchedObject = null;
@@ -473,6 +548,7 @@ namespace MemoryWatchDogApp
             public string FieldNameText { get; }
             public string ReferenceCountText { get; }
             public bool IsDisposed { get; }
+
             public string DisposedText { get; }
             public string StaticText { get; }
             public string EventHandlerText { get; }

@@ -85,14 +85,25 @@
                 <TabItem Header="Retention Graph">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" x:Name="RetentionNoSelectionText"
+
+                        <!-- Toolbar -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,4">
+                            <Button x:Name="CopyForLlmButton" Content="📋 Copy for LLM"
+                                    Click="CopyForLlm_Click"
+                                    IsEnabled="False"
+                                    Padding="8,3" FontSize="11"
+                                    ToolTip="Serializes the selected object's retention graph as JSON and copies it to the clipboard for LLM analysis."/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" x:Name="RetentionNoSelectionText"
                          Text="Select an object from the list to view the retention graph."
                          Foreground="Gray" FontStyle="Italic" VerticalAlignment="Top" Margin="5"/>
-                        <TreeView Grid.Row="0" x:Name="RetentionTreeView" Visibility="Collapsed"
+                        <TreeView Grid.Row="1" x:Name="RetentionTreeView" Visibility="Collapsed"
                         VirtualizingStackPanel.IsVirtualizing="True"
                         VirtualizingStackPanel.VirtualizationMode="Recycling"
                         BorderThickness="0"
@@ -123,11 +134,11 @@
                             </TreeView.ItemTemplate>
                         </TreeView>
 
-                        <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch"
+                        <GridSplitter Grid.Row="2" Height="4" HorizontalAlignment="Stretch"
                                       VerticalAlignment="Center" Background="LightGray" Margin="0,2"/>
 
                         <!-- Node Detail Panel -->
-                        <Border Grid.Row="2" BorderBrush="LightGray" BorderThickness="1" CornerRadius="3"
+                        <Border Grid.Row="3" BorderBrush="LightGray"
                                 Background="#FAFAFA" MinHeight="60" MaxHeight="150" Padding="8,6">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                 <StackPanel x:Name="RetentionDetailPanel">

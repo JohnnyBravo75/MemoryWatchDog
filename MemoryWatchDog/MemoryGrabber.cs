@@ -82,10 +82,10 @@ namespace MemoryWatchDog
 
                 if (memoryStatsFilter.CaputureThreads)
                 {
-                    memoryStats.ActiveWorkerThreads = runtime.ThreadPool.ActiveWorkerThreads;
-                    memoryStats.IdleWorkerThreads = runtime.ThreadPool.IdleWorkerThreads;
-                    memoryStats.WindowsThreadPoolThreadCount = runtime.ThreadPool.WindowsThreadPoolThreadCount;
-                    memoryStats.MaxThreads = runtime.ThreadPool.MaxThreads;
+                    memoryStats.ActiveWorkerThreads = runtime.ThreadPool?.ActiveWorkerThreads ?? 0;
+                    memoryStats.IdleWorkerThreads = runtime.ThreadPool?.IdleWorkerThreads ?? 0;
+                    memoryStats.WindowsThreadPoolThreadCount = runtime.ThreadPool?.WindowsThreadPoolThreadCount ?? 0;
+                    memoryStats.MaxThreads = runtime.ThreadPool?.MaxThreads ?? 0;
 
                     this.ReadThreads(runtime, memoryStats, cancellationToken);
                 }
@@ -187,7 +187,7 @@ namespace MemoryWatchDog
             }
 
             memoryStats.NETVersion = runtime.ClrInfo.Version?.ToString();
-            memoryStats.CpuUtilizationPercent = runtime.ThreadPool.CpuUtilization;
+            memoryStats.CpuUtilizationPercent = runtime.ThreadPool?.CpuUtilization ?? 0;
 
             // Collect GC heap segment sizes
             try
@@ -243,6 +243,11 @@ namespace MemoryWatchDog
         {
             // Resolve thread names from the heap by finding System.Threading.Thread objects
             var threadNames = ClrReader.ResolveThreadNames(runtime);
+
+            if (runtime.Threads == null)
+            {
+                return;
+            }
 
             foreach (var thread in runtime.Threads.Where(x => x.IsAlive))
             {
