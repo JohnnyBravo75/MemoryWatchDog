@@ -39,7 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="splashscreen.png" />
+    <SplashScreen Include="splashscreen.png" />
   </ItemGroup>
 
   <!--

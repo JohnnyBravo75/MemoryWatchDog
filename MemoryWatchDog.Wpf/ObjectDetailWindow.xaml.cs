@@ -82,7 +82,7 @@ namespace MemoryWatchDogApp
             this.currentSelectedObject = null;
             this.typeInfo = null;
             this.leakCandidate = null;
-
+            this.allDisplayItems = null;
             this.Owner?.Activate();
             this.Owner = null;
 
