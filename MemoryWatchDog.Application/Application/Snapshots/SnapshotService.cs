@@ -1,7 +1,8 @@
-namespace MemoryWatchDog
+namespace MemoryWatchDog.Application
 {
     using System;
     using System.Collections.Generic;
+    using MemoryWatchDog.Core;
 
     public class SnapshotService
     {

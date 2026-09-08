@@ -1,4 +1,4 @@
-﻿namespace MemoryWatchDog
+﻿namespace MemoryWatchDog.Core
 {
     using System.Collections.Generic;
 
@@ -18,7 +18,21 @@
 
         public MemoryStatsFilter()
         {
-            this.ExcludeNameSpaces = ClrReader.GetSystemNamespaces();
+            this.ExcludeNameSpaces = new List<string>
+            {
+                "<>",
+                "System",
+                "Microsoft",
+                "Windows",
+                "mscorlib",
+                "MS.",
+                "Global",
+                "Global Namespace",
+                "<CppImplementationDetails>",
+                "<CrtImplementationDetails>",
+                "Internal.",
+                "Roslyn"
+            };
         }
 
         public List<string> ExcludeNameSpaces

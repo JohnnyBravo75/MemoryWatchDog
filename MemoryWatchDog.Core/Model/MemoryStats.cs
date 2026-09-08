@@ -1,4 +1,4 @@
-﻿namespace MemoryWatchDog
+﻿namespace MemoryWatchDog.Core
 {
     using System;
     using System.Collections.Generic;
@@ -74,7 +74,7 @@
         public List<ThreadInfo> Threads { get; } = new List<ThreadInfo>();
 
         [Description("The .NET version of the process")]
-        public string NETVersion { get; internal set; }
+        public string NETVersion { get; set; }
 
 
         public void Clear()

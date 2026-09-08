@@ -1,4 +1,4 @@
-namespace MemoryWatchDog
+namespace MemoryWatchDog.Core
 {
     using System.Collections.Generic;
 

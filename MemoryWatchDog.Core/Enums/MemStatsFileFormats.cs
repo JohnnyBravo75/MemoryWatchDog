@@ -1,4 +1,4 @@
-﻿namespace MemoryWatchDog
+﻿namespace MemoryWatchDog.Core
 {
     public enum MemStatsFileFormats
     {

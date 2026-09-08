@@ -1,8 +1,9 @@
-namespace MemoryWatchDog
+namespace MemoryWatchDog.Application
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using MemoryWatchDog.Core;
 
     /// <summary>
     /// Analyzes a series of aggregated memory snapshots to detect types with sustained growth patterns

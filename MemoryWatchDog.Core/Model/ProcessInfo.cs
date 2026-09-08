@@ -1,4 +1,4 @@
-﻿namespace MemoryWatchDogApp
+﻿namespace MemoryWatchDog.Core
 {
     public class ProcessInfo
     {
