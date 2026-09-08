@@ -10,7 +10,6 @@ namespace MemoryWatchDogApp
     using System.Windows.Media.Effects;
     using System.Windows.Shapes;
     using MemoryWatchDog;
-    using Newtonsoft.Json;
 
     /// <summary>
     /// Interaction logic for ObjectDetailWindow.xaml
@@ -24,6 +23,7 @@ namespace MemoryWatchDogApp
         private List<string>? systemNamespaces = ClrReader.GetSystemNamespaces();
         private ObjectInfo? currentSelectedObject;
         private LeakCandidate? leakCandidate;
+        private LlmExportService llmExportService = new LlmExportService();
 
         public ObjectDetailWindow(TypeInfo typeInfo, MemoryStats memoryStats = null, LeakCandidate leakCandidate = null)
         {
@@ -356,31 +356,13 @@ namespace MemoryWatchDogApp
                 return;
             }
 
-            var dto = new LlmLeakContextDto
-            {
-                TypeName = this.typeInfo?.TypeName ?? this.currentSelectedObject.TypeName,
-                RetentionGraph = BuildRetentionDto(this.currentSelectedObject, 0)
-            };
+            var dto = this.llmExportService.BuildLeakContextDto(
+                this.currentSelectedObject,
+                this.typeInfo?.TypeName ?? this.currentSelectedObject.TypeName,
+                this.leakCandidate,
+                4);
 
-            if (this.leakCandidate != null)
-            {
-                dto.Confidence = this.leakCandidate.ConfidenceText;
-                dto.Pattern = this.leakCandidate.PatternText;
-                dto.InitialCount = this.leakCandidate.InitialCount;
-                dto.CurrentCount = this.leakCandidate.CurrentCount;
-                dto.CountGrowth = this.leakCandidate.CountGrowth;
-                dto.InitialTotalSizeBytes = this.leakCandidate.InitialTotalSize;
-                dto.CurrentTotalSizeBytes = this.leakCandidate.CurrentTotalSize;
-                dto.CurrentAverageSizeBytes = this.leakCandidate.CurrentAverageSize;
-                dto.TrendRSquared = this.leakCandidate.TrendRSquared;
-                dto.TrendSlope = this.leakCandidate.TrendSlope;
-                dto.GrowthRatePerInterval = this.leakCandidate.GrowthRatePerInterval;
-                dto.ConsecutiveGrowthCount = this.leakCandidate.ConsecutiveGrowthCount;
-                dto.HasDisposedInstances = this.leakCandidate.HasDisposedInstances;
-                dto.EstimatedTimeToOOM = this.leakCandidate.EstimatedTimeToOOMText;
-            }
-
-            var json = JsonConvert.SerializeObject(dto, Formatting.Indented);
+            var json = this.llmExportService.ToJson(dto);
             Clipboard.SetText(json);
 
             MessageBox.Show(
@@ -388,33 +370,6 @@ namespace MemoryWatchDogApp
                 "Copied for LLM",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
-        }
-
-        private static LlmRetentionNodeDto BuildRetentionDto(ObjectInfo obj, int depth)
-        {
-            const int MaxDepth = 4;
-
-            var node = new LlmRetentionNodeDto
-            {
-                TypeName = obj.TypeName ?? "",
-                FieldName = obj.FieldName ?? "",
-                SizeBytes = obj.Size
-            };
-
-            if (depth < MaxDepth)
-            {
-                foreach (var child in obj.References)
-                {
-                    if (node.Children == null)
-                    {
-                        node.Children = new List<LlmRetentionNodeDto>();
-                    }
-
-                    node.Children.Add(BuildRetentionDto(child, depth + 1));
-                }
-            }
-
-            return node;
         }
 
         private void OpenReferenceDetail(ObjectInfo refInfo)

@@ -12,7 +12,6 @@
     using System.Windows.Media;
     using System.Windows.Threading;
     using MemoryWatchDog;
-    using Newtonsoft.Json;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -24,7 +23,9 @@
         private string objectsFilterText = string.Empty;
         private MemoryStats? currentStats;
         private CancellationTokenSource? captureCts;
-        private ObservableCollection<SnapshotItem> snapshots = new ObservableCollection<SnapshotItem>();
+        private ObservableCollection<SnapshotRecord> snapshots = new ObservableCollection<SnapshotRecord>();
+        private SnapshotService snapshotService = new SnapshotService();
+        private LlmExportService llmExportService = new LlmExportService();
 
         // Auto Watch mode fields
         private DispatcherTimer? autoWatchTimer;
@@ -117,137 +118,28 @@
                 return;
             }
 
-            const int TopN = 10;
-            const int SampleCount = 3;
-            var stats = this.currentStats;
-            long totalCollected = stats.TotalCollectedObjectSize;
-            bool isAggregated = stats.Types.Values.All(t => t.Objects.Count == 0);
-
-            bool excludeSystem = this.ExcludeSystemNamespacesCheckBox.IsChecked == true;
-            var systemNamespaces = excludeSystem ? ClrReader.GetSystemNamespaces() : null;
-
-            bool IsSystemType(string typeName)
+            var options = new LlmHeapExportOptions
             {
-                if (systemNamespaces == null || string.IsNullOrEmpty(typeName))
-                {
-                    return false;
-                }
-
-                var ns = CommonUtil.GetNamespaceFromTypeName(typeName);
-                foreach (var sysNs in systemNamespaces)
-                {
-                    if (ns.StartsWith(sysNs, StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            LlmHeapTypeDto ToDto(TypeInfo t)
-            {
-                var entry = new LlmHeapTypeDto
-                {
-                    TypeName = t.TypeName,
-                    Count = t.Count,
-                    TotalSizeBytes = t.Size,
-                    AvgSizeBytes = t.Count > 0 ? Math.Round((double)t.Size / t.Count, 1) : 0,
-                    PercentOfHeap = totalCollected > 0
-                        ? Math.Round((double)t.Size / totalCollected * 100, 2)
-                        : 0
-                };
-
-                foreach (var obj in t.Objects.Take(SampleCount))
-                {
-                    entry.SampleObjects.Add(BuildHeapRetentionDto(obj, 0, IsSystemType));
-                }
-
-                return entry;
-            }
-
-            var types = stats.Types.Values
-                .Where(t => !IsSystemType(t.TypeName))
-                .ToList();
-
-            var dto = new LlmHeapSnapshotDto
-            {
-                CaptureDate = stats.CaptureDate,
-                ProcessName = stats.ProcessName ?? "",
-                ProcessId = stats.ProcessId,
-                NETVersion = stats.NETVersion ?? "",
-                WorkingSetBytes = stats.WorkingSet,
-                GCHeapBytes = stats.GCHeapSize,
-                Gen0Bytes = stats.Gen0Size,
-                Gen1Bytes = stats.Gen1Size,
-                Gen2Bytes = stats.Gen2Size,
-                LOHBytes = stats.LOHSize,
-                POHBytes = stats.POHSize,
-                TotalCollectedObjectBytes = totalCollected,
-                UniqueTypeCount = types.Count,
-                TotalObjectCount = stats.ObjectCount,
-                IsAggregateMode = isAggregated,
-                TopByTotalSize = types
-                    .OrderByDescending(t => t.Size)
-                    .Take(TopN)
-                    .Select(ToDto)
-                    .ToList(),
-                TopByCount = types
-                    .OrderByDescending(t => t.Count)
-                    .Take(TopN)
-                    .Select(ToDto)
-                    .ToList(),
-                TopByAvgSize = types
-                    .Where(t => t.Count > 0)
-                    .OrderByDescending(t => (double)t.Size / t.Count)
-                    .Take(TopN)
-                    .Select(ToDto)
-                    .ToList()
+                TopN = 10,
+                SampleCount = 3,
+                MaxRetentionDepth = 3,
+                ExcludedNamespaces = this.ExcludeSystemNamespacesCheckBox.IsChecked == true
+                    ? ClrReader.GetSystemNamespaces()
+                    : new List<string>()
             };
 
-            var json = JsonConvert.SerializeObject(dto, new JsonSerializerSettings
-            {
-                NullValueHandling = NullValueHandling.Ignore,
-                DefaultValueHandling = DefaultValueHandling.Ignore,
-                Formatting = Formatting.Indented
-            });
+            var dto = this.llmExportService.BuildHeapSnapshotDto(this.currentStats, options);
+            var json = this.llmExportService.ToJson(dto);
             Clipboard.SetText(json);
 
-            var hint = isAggregated ? " (no object samples — aggregate mode)" : $" with up to {SampleCount} object samples per type";
-            this.StatusText.Text = $"Heap snapshot (Top {TopN}){hint} copied to clipboard for LLM analysis.";
-        }
+            var hint = dto.IsAggregateMode ? " (no object samples — aggregate mode)" : $" with up to {options.SampleCount} object samples per type";
 
-        private static LlmRetentionNodeDto BuildHeapRetentionDto(ObjectInfo obj, int depth, Func<string, bool> isSystemType)
-        {
-            const int MaxDepth = 3;
+            MessageBox.Show(
+                $"Heap snapshot (Top {options.TopN}){hint} copied to clipboard for LLM analysis.",
+                "Copied for LLM",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
 
-            var node = new LlmRetentionNodeDto
-            {
-                TypeName = obj.TypeName ?? "",
-                FieldName = obj.FieldName ?? "",
-                SizeBytes = obj.Size
-            };
-
-            if (depth < MaxDepth)
-            {
-                foreach (var child in obj.References)
-                {
-                    if (isSystemType(child.TypeName))
-                    {
-                        continue;
-                    }
-
-                    var childNode = BuildHeapRetentionDto(child, depth + 1, isSystemType);
-                    if (node.Children == null)
-                    {
-                        node.Children = new List<LlmRetentionNodeDto>();
-                    }
-
-                    node.Children.Add(childNode);
-                }
-            }
-
-            return node;
         }
 
 
@@ -267,13 +159,7 @@
                 // Clear snapshots and UI when switching to a different process
                 if (previousProcessId != null && previousProcessId != this.selectedProcess.Id)
                 {
-                    foreach (var item in this.snapshots)
-                    {
-                        item.Stats?.Clear();
-                        item.Stats = null;
-                    }
-
-                    this.snapshots.Clear();
+                    this.snapshotService.ClearSnapshots(this.snapshots);
                     this.DisplayMemoryStats(null!);
                     this.RemoveSnapshotButton.IsEnabled = false;
                     this.CompareSnapshotsButton.IsEnabled = false;
@@ -1216,8 +1102,7 @@
 
         private void AddSnapshotAndSelect(MemoryStats stats, bool isAutoSnapshot = false)
         {
-            var item = new SnapshotItem(stats, isAutoSnapshot);
-            this.snapshots.Add(item);
+            var item = this.snapshotService.AddSnapshot(this.snapshots, stats, isAutoSnapshot);
             this.SnapshotsListBox.SelectedItem = item;
         }
 
@@ -1229,7 +1114,7 @@
             this.RemoveSnapshotButton.IsEnabled = count > 0;
             this.CompareSnapshotsButton.IsEnabled = count == 2;
 
-            if (count == 1 && selectedItems[0] is SnapshotItem item)
+            if (count == 1 && selectedItems[0] is SnapshotRecord item)
             {
                 this.DisplayMemoryStats(item.Stats);
             }
@@ -1243,78 +1128,41 @@
                 return;
             }
 
-            var itemA = (SnapshotItem)selectedItems[0]!;
-            var itemB = (SnapshotItem)selectedItems[1]!;
+            var itemA = (SnapshotRecord)selectedItems[0]!;
+            var itemB = (SnapshotRecord)selectedItems[1]!;
 
             this.CompareSnapshots(itemA, itemB);
         }
 
-        private void CompareSnapshots(SnapshotItem itemA, SnapshotItem itemB)
+        private void CompareSnapshots(SnapshotRecord itemA, SnapshotRecord itemB)
         {
-            // Ensure older snapshot is A, newer is B
-            MemoryStats statsA, statsB;
-            if (itemA.Stats.CaptureDate <= itemB.Stats.CaptureDate)
-            {
-                statsA = itemA.Stats;
-                statsB = itemB.Stats;
-            }
-            else
-            {
-                statsA = itemB.Stats;
-                statsB = itemA.Stats;
-            }
+            var orderedStats = this.snapshotService.GetChronologicalPair(itemA, itemB);
 
-            var comparisonWindow = new SnapshotComparisonWindow(statsA, statsB);
+            var comparisonWindow = new SnapshotComparisonWindow(orderedStats.Older, orderedStats.Newer);
             comparisonWindow.Owner = this;
             comparisonWindow.Show();
         }
 
         private void RemoveSnapshotButton_Click(object sender, RoutedEventArgs e)
         {
-            if (this.SnapshotsListBox.SelectedItem is SnapshotItem snapshotItem)
+            if (this.SnapshotsListBox.SelectedItem is SnapshotRecord snapshotItem)
             {
                 this.RemoveSnapshot(snapshotItem);
             }
         }
 
-        private void RemoveSnapshot(SnapshotItem item)
+        private void RemoveSnapshot(SnapshotRecord item)
         {
-            int index = this.snapshots.IndexOf(item);
-            item.Stats?.Clear();
-            item.Stats = null;
-            this.snapshots.Remove(item);
+            int index = this.snapshotService.RemoveSnapshot(this.snapshots, item);
 
             if (this.snapshots.Count > 0)
             {
-                this.SnapshotsListBox.SelectedIndex = Math.Min(index, this.snapshots.Count - 1);
+                this.SnapshotsListBox.SelectedIndex = index;
             }
             else
             {
                 this.DisplayMemoryStats(null!);
                 this.RemoveSnapshotButton.IsEnabled = false;
-            }
-        }
-
-        private class SnapshotItem
-        {
-            private static readonly SolidColorBrush ManualBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x66, 0x99));
-            private static readonly SolidColorBrush AutoBrush = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
-
-            public MemoryStats? Stats { get; set; }
-            public string DisplayDate { get; set; }
-            public string DisplayProcess { get; set; }
-            public bool IsAutoSnapshot { get; set; }
-            public string ModeTag { get; set; }
-            public SolidColorBrush ModeTagBrush { get; set; }
-
-            public SnapshotItem(MemoryStats stats, bool isAutoSnapshot = false)
-            {
-                this.Stats = stats;
-                this.IsAutoSnapshot = isAutoSnapshot;
-                this.DisplayDate = stats.CaptureDate.ToString("yyyy-MM-dd HH:mm:ss");
-                this.DisplayProcess = $"{stats.ProcessName} (PID {stats.ProcessId})";
-                this.ModeTag = isAutoSnapshot ? "Auto" : "Manual";
-                this.ModeTagBrush = isAutoSnapshot ? AutoBrush : ManualBrush;
             }
         }
 
@@ -1361,7 +1209,7 @@
         private void SnapshotsListBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (this.currentStats == null
-                && this.SnapshotsListBox.SelectedItem is SnapshotItem item
+                && this.SnapshotsListBox.SelectedItem is SnapshotRecord item
                 && item.Stats != null)
             {
                 this.DisplayMemoryStats(item.Stats);
